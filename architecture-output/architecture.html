@@ -1,0 +1,1504 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>opencode · architecture map</title>
+    <style>
+      :root {
+        --bg: #0f1115;
+        --bg-2: #151821;
+        --bg-3: #1c2030;
+        --line: #262b3a;
+        --text: #e6e9f2;
+        --text-dim: #8a91a7;
+        --text-soft: #b6bccd;
+        --accent: #f6c177;
+        --accent-2: #c4a7e7;
+        --teal: #66d9c8;
+        --mint: #95e6cb;
+        --rose: #eb6f92;
+        --blue: #7aa2f7;
+        --orange: #ff9e64;
+        --green: #9ece6a;
+        --layer-surface: #eb6f92;
+        --layer-application: #f6c177;
+        --layer-domain: #c4a7e7;
+        --layer-integration: #7aa2f7;
+        --layer-foundation: #95e6cb;
+        --layer-infra: #ff9e64;
+        --radius: 10px;
+        --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace;
+      }
+      * { box-sizing: border-box }
+      html, body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+      }
+      a { color: var(--accent); text-decoration: none }
+      a:hover { text-decoration: underline }
+      code, kbd, .mono { font-family: var(--mono); font-size: 0.85em }
+      .wrap { max-width: 1400px; margin: 0 auto; padding: 0 28px }
+      header {
+        position: sticky; top: 0; z-index: 10;
+        background: rgba(15,17,21,.85);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line);
+      }
+      .header-inner {
+        display: flex; align-items: center; gap: 24px;
+        padding: 14px 28px;
+        max-width: 1400px; margin: 0 auto;
+      }
+      .brand {
+        font-weight: 700; letter-spacing: -0.01em; font-size: 16px;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .brand-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--rose));
+      }
+      nav.tabs { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap }
+      nav.tabs button {
+        background: transparent; color: var(--text-dim);
+        border: 1px solid transparent;
+        padding: 7px 14px; border-radius: 8px;
+        font: inherit; cursor: pointer;
+      }
+      nav.tabs button:hover { color: var(--text); background: var(--bg-2) }
+      nav.tabs button.active {
+        color: var(--text); background: var(--bg-3);
+        border-color: var(--line);
+      }
+      .hero { padding: 56px 0 32px }
+      .hero h1 {
+        font-size: 38px; line-height: 1.1; margin: 0 0 14px;
+        letter-spacing: -0.02em; font-weight: 700;
+      }
+      .hero .tagline { color: var(--text-soft); font-size: 17px; max-width: 760px }
+      .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px }
+      .badge {
+        background: var(--bg-2); border: 1px solid var(--line);
+        padding: 5px 12px; border-radius: 999px; font-size: 12px;
+        color: var(--text-soft);
+      }
+      .badge b { color: var(--text); font-weight: 600 }
+      section { padding: 28px 0; border-top: 1px solid var(--line); display: none }
+      section.active { display: block }
+      h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -0.01em; font-weight: 600 }
+      .section-sub { color: var(--text-dim); margin-bottom: 24px }
+      .grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 16px;
+        cursor: pointer; transition: transform .12s, border-color .12s, background .12s;
+      }
+      .card:hover { border-color: var(--accent); transform: translateY(-1px); background: var(--bg-3) }
+      .card h3 {
+        margin: 0 0 4px; font-size: 14px;
+        display: flex; align-items: center; gap: 8px;
+        font-family: var(--mono);
+      }
+      .layer-pill {
+        display: inline-block; padding: 2px 8px;
+        border-radius: 999px; font-size: 10px;
+        font-weight: 600; text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .layer-surface     { background: rgba(235,111,146,.15); color: var(--layer-surface) }
+      .layer-application { background: rgba(246,193,119,.15); color: var(--layer-application) }
+      .layer-domain      { background: rgba(196,167,231,.15); color: var(--layer-domain) }
+      .layer-integration { background: rgba(122,162,247,.15); color: var(--layer-integration) }
+      .layer-foundation  { background: rgba(149,230,203,.15); color: var(--layer-foundation) }
+      .layer-infra       { background: rgba(255,158,100,.15); color: var(--layer-infra) }
+      .layer-multi       { background: rgba(255,255,255,.08); color: var(--text-soft) }
+      .card .role { color: var(--text-soft); font-size: 13px; margin: 8px 0 0 }
+      .card .deps { margin-top: 10px; display: flex; gap: 4px; flex-wrap: wrap }
+      .card .deps span {
+        font-size: 11px; padding: 2px 7px; border-radius: 5px;
+        background: var(--bg-3); color: var(--text-dim);
+        font-family: var(--mono);
+      }
+      .detail-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,.5);
+        display: none; align-items: center; justify-content: center;
+        z-index: 100; padding: 32px;
+      }
+      .detail-overlay.open { display: flex }
+      .detail {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: 14px; max-width: 820px; width: 100%;
+        max-height: 86vh; overflow: auto;
+        padding: 28px 32px;
+      }
+      .detail h2 { margin-top: 0; font-family: var(--mono); font-size: 18px }
+      .detail .meta-row { color: var(--text-dim); margin: 4px 0 16px; font-size: 13px }
+      .detail h4 {
+        margin: 22px 0 8px; font-size: 12px;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        color: var(--text-dim); font-weight: 600;
+      }
+      .detail ul { padding-left: 18px; margin: 4px 0 }
+      .detail li { margin-bottom: 4px; color: var(--text-soft) }
+      .detail .kv {
+        display: grid; grid-template-columns: 220px 1fr; gap: 4px 16px;
+        font-size: 13px;
+      }
+      .detail .kv b { font-family: var(--mono); color: var(--text); font-weight: 500 }
+      .detail .kv span { color: var(--text-soft) }
+      .detail p { color: var(--text-soft) }
+      .detail .tag-row { display: flex; flex-wrap: wrap; gap: 6px }
+      .detail .tag-row code {
+        background: var(--bg-3); padding: 2px 8px; border-radius: 4px;
+        font-family: var(--mono); font-size: 12px;
+      }
+      .close-btn {
+        float: right; background: var(--bg-3); color: var(--text-dim);
+        border: 1px solid var(--line); border-radius: 6px;
+        padding: 4px 10px; cursor: pointer; font: inherit;
+      }
+      .close-btn:hover { color: var(--text) }
+      .layers-stack { display: flex; flex-direction: column; gap: 18px }
+      .layer-row {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px 20px;
+      }
+      .layer-row h3 {
+        margin: 0 0 6px; font-size: 16px;
+        display: flex; gap: 10px; align-items: center;
+      }
+      .layer-row .layer-desc { color: var(--text-dim); margin: 0 0 14px; font-size: 13px }
+      .layer-row .layer-cards {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 8px;
+      }
+      .layer-mini {
+        background: var(--bg-3); border: 1px solid var(--line);
+        border-radius: 7px; padding: 10px 12px; cursor: pointer;
+        font-size: 12px; font-family: var(--mono);
+        transition: border-color .12s;
+      }
+      .layer-mini:hover { border-color: var(--accent) }
+      .layer-mini .nm { color: var(--text) }
+      .layer-mini .pth { color: var(--text-dim); font-size: 11px; margin-top: 2px }
+      .graph-wrap {
+        position: relative;
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .graph-wrap svg { display: block; width: 100%; height: auto }
+      .legend {
+        display: flex; gap: 16px; flex-wrap: wrap; padding: 12px 20px;
+        border-bottom: 1px solid var(--line); font-size: 12px;
+        color: var(--text-dim);
+      }
+      .legend-item { display: flex; align-items: center; gap: 6px }
+      .legend-dot { width: 10px; height: 10px; border-radius: 50% }
+      .flow-card {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+      }
+      .flow-card h3 { margin: 0 0 12px; font-size: 16px }
+      .flow-steps { counter-reset: step; padding: 0; list-style: none }
+      .flow-steps li {
+        position: relative; padding-left: 36px; margin-bottom: 10px;
+        color: var(--text-soft);
+      }
+      .flow-steps li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute; left: 0; top: 0;
+        width: 24px; height: 24px; line-height: 24px; text-align: center;
+        background: var(--bg-3); border: 1px solid var(--line);
+        border-radius: 50%; color: var(--accent); font-size: 11px;
+        font-family: var(--mono);
+      }
+      details.pattern {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius); margin-bottom: 12px;
+        padding: 14px 18px;
+      }
+      details.pattern[open] { background: var(--bg-3) }
+      details.pattern summary {
+        cursor: pointer; font-weight: 600; font-size: 14px;
+        display: flex; align-items: center; justify-content: space-between;
+        list-style: none;
+      }
+      details.pattern summary::after { content: "+"; color: var(--text-dim); font-size: 18px }
+      details.pattern[open] summary::after { content: "−" }
+      details.pattern .body { padding-top: 12px; color: var(--text-soft) }
+      details.pattern .body p { margin: 6px 0 }
+      details.pattern .body code { background: var(--bg); padding: 1px 6px; border-radius: 4px }
+      details.pattern .body h4 {
+        font-size: 11px; text-transform: uppercase;
+        color: var(--text-dim); margin: 10px 0 4px; font-weight: 600;
+      }
+      details.pattern .body ul { padding-left: 18px; margin: 4px 0 }
+      .guide-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 14px;
+      }
+      .guide-card {
+        background: var(--bg-2); border: 1px solid var(--line);
+        border-radius: var(--radius); padding: 18px;
+      }
+      .guide-card h3 {
+        margin: 0 0 10px; font-size: 14px;
+        color: var(--accent); font-family: var(--mono);
+      }
+      .guide-card ul { margin: 6px 0; padding-left: 18px; color: var(--text-soft) }
+      .guide-card li { margin: 4px 0 }
+      .guide-card code {
+        background: var(--bg-3); padding: 1px 6px; border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .toolbar {
+        display: flex; gap: 8px; align-items: center; margin: 0 0 16px;
+        flex-wrap: wrap;
+      }
+      .toolbar input {
+        background: var(--bg-2); border: 1px solid var(--line);
+        color: var(--text); padding: 8px 12px; border-radius: 8px;
+        font: inherit; min-width: 240px;
+      }
+      .toolbar input:focus { outline: none; border-color: var(--accent) }
+      .filter-chip {
+        background: var(--bg-2); color: var(--text-dim);
+        border: 1px solid var(--line); border-radius: 999px;
+        padding: 4px 12px; cursor: pointer; font-size: 12px;
+      }
+      .filter-chip.active { color: var(--text); border-color: var(--accent); background: var(--bg-3) }
+      footer {
+        padding: 32px 0 56px;
+        color: var(--text-dim); font-size: 12px; text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <div class="brand"><span class="brand-dot"></span>opencode · architecture map</div>
+        <nav class="tabs">
+          <button data-tab="overview" class="active">Overview</button>
+          <button data-tab="layers">Layers</button>
+          <button data-tab="packages">Packages</button>
+          <button data-tab="graph">Dependency graph</button>
+          <button data-tab="flow">Data flow</button>
+          <button data-tab="patterns">Patterns</button>
+          <button data-tab="guide">Agent guide</button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section id="overview" class="active">
+        <div class="hero">
+          <h1 id="hero-title"></h1>
+          <p class="tagline" id="hero-tagline"></p>
+          <div class="badges" id="hero-badges"></div>
+        </div>
+        <h2>Entry points</h2>
+        <p class="section-sub">Where execution actually starts. Each is a different surface or process boundary.</p>
+        <div class="grid" id="entries"></div>
+      </section>
+
+      <section id="layers">
+        <h2>Architectural layers</h2>
+        <p class="section-sub">Six layers from <i>surface</i> (what users see) down through <i>infra</i> (how it's deployed). Click any card for details.</p>
+        <div class="layers-stack" id="layers-list"></div>
+      </section>
+
+      <section id="packages">
+        <h2>Packages</h2>
+        <p class="section-sub"><span id="pkg-count"></span> workspace packages. Filter by layer or search by name.</p>
+        <div class="toolbar">
+          <input id="pkg-search" placeholder="Search packages..." />
+          <span class="filter-chip active" data-filter="all">All</span>
+          <span class="filter-chip" data-filter="surface">Surface</span>
+          <span class="filter-chip" data-filter="application">Application</span>
+          <span class="filter-chip" data-filter="domain">Domain</span>
+          <span class="filter-chip" data-filter="integration">Integration</span>
+          <span class="filter-chip" data-filter="foundation">Foundation</span>
+        </div>
+        <div class="grid" id="packages-list"></div>
+      </section>
+
+      <section id="graph">
+        <h2>Dependency graph</h2>
+        <p class="section-sub">Workspace dependencies between packages. Arrows point from dependent → dependency.</p>
+        <div class="graph-wrap">
+          <div class="legend">
+            <span class="legend-item"><span class="legend-dot" style="background:var(--layer-surface)"></span>Surface</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--layer-application)"></span>Application</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--layer-domain)"></span>Domain</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--layer-integration)"></span>Integration</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--layer-foundation)"></span>Foundation</span>
+          </div>
+          <svg id="dep-graph" viewBox="0 0 1320 720" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </section>
+
+      <section id="flow">
+        <h2>Data flow</h2>
+        <p class="section-sub">How information moves through the system in the most important scenarios.</p>
+        <div id="flow-list"></div>
+      </section>
+
+      <section id="patterns">
+        <h2>Patterns &amp; conventions</h2>
+        <p class="section-sub">The architectural and code-style patterns you'll see repeatedly.</p>
+        <div id="patterns-list"></div>
+      </section>
+
+      <section id="guide">
+        <h2>Agent guide</h2>
+        <p class="section-sub">For an AI agent starting work in this codebase. Read this first.</p>
+        <div class="guide-grid" id="guide-grid"></div>
+      </section>
+    </main>
+
+    <div class="detail-overlay" id="overlay">
+      <div class="detail" id="detail-body"></div>
+    </div>
+
+    <footer>
+      Self-contained map · generated for opencode · open this file in a browser
+    </footer>
+
+    <script id="arch-data" type="application/json">{
+  "$schema": "https://opencode.ai/architecture-map.schema.json",
+  "meta": {
+    "name": "opencode",
+    "tagline": "Open-source AI coding agent",
+    "repository": "https://github.com/anomalyco/opencode",
+    "defaultBranch": "dev",
+    "primaryLanguage": "TypeScript",
+    "runtimes": ["Bun (primary)", "Node.js (compat fallback for #db, #pty)", "Cloudflare Workers (function, console, enterprise)", "Electron (desktop)"],
+    "packageManager": "bun@1.3.14 (workspaces + catalog)",
+    "monorepoOrchestrator": "Turborepo (turbo.json)",
+    "uiFramework": "SolidJS + Kobalte + Tailwind v4",
+    "tuiFramework": "OpenTUI (Solid renderer in the terminal)",
+    "httpFramework": "Effect HttpApi (with HttpRouter for raw / WS); Hono in function/enterprise",
+    "ormAndDb": "Drizzle ORM + bun:sqlite (local) / PlanetScale + Postgres (cloud)",
+    "iac": "SST v4 on Cloudflare home; AWS providers (dev|production); Stripe / Honeycomb / PlanetScale",
+    "ai": "Vercel AI SDK 6 + custom @opencode-ai/llm protocol/provider routing layer",
+    "conventions": {
+      "commits": "Conventional: type(scope): summary — types feat|fix|docs|chore|refactor|test",
+      "style": "No try/catch when avoidable; no any; prefer Bun APIs; rely on type inference; functional array methods; snake_case Drizzle fields; avoid destructuring; const over let; early returns over else; small helpers below the main export; no Claude attribution in commits/PRs.",
+      "testing": "Tests run from package dirs (NOT root); avoid mocks; integration over unit when reasonable.",
+      "typecheck": "Run `bun typecheck` from package dir; uses tsgo (@typescript/native-preview)."
+    },
+    "rootEntryScripts": {
+      "bun dev": "Runs packages/opencode (CLI/TUI/server) with --conditions=browser",
+      "bun dev:desktop": "Electron app shell wrapping the SolidJS app",
+      "bun dev:web": "Vite SolidJS web app",
+      "bun dev:console": "Cloud console (auth, billing, settings)",
+      "bun dev:stats": "Stats dashboard",
+      "bun dev:storybook": "Storybook for UI components"
+    }
+  },
+
+  "entryPoints": [
+    {
+      "id": "cli-opencode",
+      "name": "opencode CLI / TUI",
+      "kind": "binary",
+      "file": "packages/opencode/src/index.ts",
+      "bin": "packages/opencode/bin/opencode",
+      "description": "Yargs-based CLI. Default-no-subcommand boots the TUI; subcommands cover serve, web, run, mcp, github, pr, db, debug, etc.",
+      "subcommands": ["run", "serve", "web", "tui", "attach", "agent", "models", "providers", "account", "github", "pr", "mcp", "stats", "export", "import", "session", "db", "debug", "upgrade", "uninstall", "acp", "plug (plugin)", "generate"]
+    },
+    {
+      "id": "server-headless",
+      "name": "Headless API server",
+      "kind": "http-server",
+      "file": "packages/opencode/src/server/server.ts",
+      "exposes": "Effect HttpApi + WebSocket. Multi-instance via x-opencode-directory header. OpenAPI generated from PublicApi.",
+      "startedBy": "opencode serve",
+      "authVar": "OPENCODE_SERVER_PASSWORD"
+    },
+    {
+      "id": "tui",
+      "name": "Terminal UI",
+      "kind": "tui",
+      "file": "packages/opencode/src/cli/cmd/tui/app.tsx",
+      "framework": "OpenTUI + SolidJS (in-terminal renderer)",
+      "alsoUsedBy": "packages/opencode/src/cli/cmd/run/*  (run command's interactive direct mode)"
+    },
+    {
+      "id": "desktop-electron",
+      "name": "Desktop app (Electron)",
+      "kind": "electron",
+      "file": "packages/desktop/src/main/index.ts",
+      "wraps": "packages/app (SolidJS)",
+      "extras": "electron-store, electron-updater, native node-pty sidecar, electron-builder targets mac/win/linux"
+    },
+    {
+      "id": "app-web",
+      "name": "Web app (SolidStart-style SPA)",
+      "kind": "spa",
+      "file": "packages/app/src/entry.tsx",
+      "pages": ["home.tsx", "session.tsx", "session/", "directory-layout.tsx", "layout.tsx", "error.tsx"],
+      "talksTo": "Headless API server via @opencode-ai/sdk client"
+    },
+    {
+      "id": "marketing-site",
+      "name": "Marketing + docs site",
+      "kind": "astro",
+      "file": "packages/web/ (Astro + Starlight)",
+      "talksTo": "Optional VITE_API_URL=https://api.opencode.ai for live data"
+    },
+    {
+      "id": "console",
+      "name": "Cloud console",
+      "kind": "solid-start",
+      "file": "packages/console/app",
+      "purpose": "Auth (OpenAuth), billing (Stripe), provider/model management, user dashboard",
+      "backend": ["packages/console/core (Drizzle + Postgres/PlanetScale)", "packages/console/function (Cloudflare Workers, OpenAuth, models proxy)", "packages/console/resource (sst Resource bindings; cloudflare or node export)"]
+    },
+    {
+      "id": "stats",
+      "name": "Stats pipeline + dashboard",
+      "kind": "data-pipeline",
+      "files": ["packages/stats/server (Firehose consumer, Effect)", "packages/stats/core (Athena + PlanetScale + Drizzle)", "packages/stats/app (Solid dashboard)"]
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise (Teams) site",
+      "kind": "solid-start-nitro",
+      "file": "packages/enterprise",
+      "deployTargets": ["cloudflare"]
+    },
+    {
+      "id": "function",
+      "name": "Public functions",
+      "kind": "cloudflare-worker",
+      "file": "packages/function (Hono + GitHub App + JOSE)",
+      "purpose": "Public-facing GitHub integration endpoints"
+    },
+    {
+      "id": "slack",
+      "name": "Slack bot",
+      "kind": "service",
+      "file": "packages/slack",
+      "purpose": "Bolt-based Slack integration that drives opencode via the SDK"
+    },
+    {
+      "id": "sdk",
+      "name": "@opencode-ai/sdk",
+      "kind": "library",
+      "file": "packages/sdk/js/src/index.ts",
+      "purpose": "Typed client + server bootstrap. v1 and v2 surfaces (v2 generated from OpenAPI)."
+    },
+    {
+      "id": "plugin",
+      "name": "@opencode-ai/plugin",
+      "kind": "library",
+      "file": "packages/plugin/src/index.ts",
+      "subpaths": ["./tool", "./tui"],
+      "purpose": "Public plugin API for extending opencode with tools, providers, TUI extensions"
+    }
+  ],
+
+  "layers": [
+    {
+      "id": "surface",
+      "name": "Surface",
+      "description": "User-facing rendering and shells: TUI, desktop, web app, marketing site, console, stats dashboard.",
+      "packages": ["opencode (cli/cmd/tui, cli/cmd/run)", "@opencode-ai/desktop", "@opencode-ai/app", "@opencode-ai/web", "@opencode-ai/console-app", "@opencode-ai/stats-app", "@opencode-ai/enterprise", "@opencode-ai/storybook", "@opencode-ai/ui (shared components, design system, icons, themes, audio, i18n)"]
+    },
+    {
+      "id": "application",
+      "name": "Application",
+      "description": "Process boundary: CLI parsing, HTTP server, IPC, plugin loading, and SDK shaped surface.",
+      "packages": ["opencode (cli/, server/, mcp/, acp/, acp-next/, plugin/, command/, ide/)", "@opencode-ai/sdk", "@opencode-ai/plugin", "@opencode-ai/slack", "@opencode-ai/console-function", "@opencode-ai/function"]
+    },
+    {
+      "id": "domain",
+      "name": "Domain",
+      "description": "Sessions, messages, agents, tools, permissions, snapshots, share — the conversational state machine.",
+      "packages": ["opencode (session/, agent/, tool/, permission/, snapshot/, share/, skill/, command/, control-plane/, sync/, bus/)"]
+    },
+    {
+      "id": "integration",
+      "name": "Integration",
+      "description": "LLM provider routing + wire protocols, MCP servers, LSP servers, plugin loaders, identity, containers/sandboxes.",
+      "packages": ["@opencode-ai/llm (providers/, protocols/, route/, tool.ts)", "opencode (provider/, lsp/, mcp/, plugin/, format/, file/, shell/, pty/, patch/, git/, image/, audio)", "@opencode-ai/identity", "@opencode-ai/containers", "@opencode-ai/extensions"]
+    },
+    {
+      "id": "foundation",
+      "name": "Foundation",
+      "description": "Reusable utilities: Effect runtime, drizzle helpers, HTTP recorder, generic core utilities.",
+      "packages": ["@opencode-ai/core (effect/, util/, plugin/, installation/, github-copilot/, flag/)", "@opencode-ai/effect-drizzle-sqlite", "@opencode-ai/http-recorder", "@opencode-ai/script"]
+    },
+    {
+      "id": "infra",
+      "name": "Infra",
+      "description": "Infrastructure-as-code, packaging, release plumbing, generated SDKs.",
+      "packages": ["infra/ (SST stacks: app, lake, stats, console, enterprise, monitoring)", "patches/", "nix/, flake.nix", "github/ (npm publish + github action source)", "sdks/ (generated python SDK output)"]
+    }
+  ],
+
+  "packages": [
+    {
+      "name": "opencode",
+      "path": "packages/opencode",
+      "role": "Core business logic + CLI + HTTP server. The heart of the product.",
+      "layer": "application+domain",
+      "language": "TypeScript",
+      "runtime": "Bun (Node fallback via #db / #pty conditional imports)",
+      "exports": "./src/* (every .ts file under src is publicly importable via @/...)",
+      "tsconfigImports": {
+        "#db": "./src/storage/db.bun.ts → db.node.ts",
+        "#pty": "./src/pty/pty.bun.ts → pty.node.ts",
+        "@/*": "./src/*"
+      },
+      "keyDirectories": {
+        "cli/": "Yargs commands + effect-cmd wrapper",
+        "cli/cmd/tui/": "Terminal UI (Solid + OpenTUI)",
+        "cli/cmd/run/": "Single-prompt and split-footer interactive modes",
+        "server/": "Effect HttpApi server + WS + projectors. Group/handlers per domain.",
+        "session/": "Session state machine — messages, parts, llm orchestration, compaction, overflow, projectors, todos, summaries",
+        "agent/": "Agent definitions (build / plan / general subagent) + permissions",
+        "tool/": "Built-in tools (edit, glob, grep, read, write, shell, task, todo, webfetch, websearch, plan, question, repo_clone, repo_overview, apply_patch, lsp, skill, mcp-websearch) + registry",
+        "provider/": "Provider lookup, auth flows, model status, error normalization",
+        "mcp/": "MCP server integration + OAuth callback",
+        "acp/ and acp-next/": "Agent Communication Protocol (host-side; integrates with editors)",
+        "plugin/": "First-party plugin shims (codex, xai, cloudflare, azure, digitalocean, github-copilot) + loader/install",
+        "lsp/": "Language server lifecycle, diagnostics",
+        "permission/": "Permission evaluation + schema (allow/deny/ask granularity per tool/resource)",
+        "snapshot/": "Filesystem snapshots / revert support",
+        "share/": "Public session share endpoints + storage",
+        "skill/": "Skill discovery + prompt assembly",
+        "command/": "Slash-command definitions",
+        "config/": "Config loading (self-export pattern)",
+        "control-plane/": "Cross-instance coordination",
+        "storage/": "Bun-SQLite via Drizzle, JSON-migration shim",
+        "sync/": "SyncEvent / event-sourcing layer (see sync/README.md)",
+        "bus/": "Bus event abstraction (subscribe/publish; receives sync re-publishes)",
+        "pty/": "Conditional Bun / Node node-pty wrapper for shell sessions",
+        "patch/, git/, file/, shell/, image/, format/, ide/": "Domain helpers (apply_patch parser, git wrapper, ripgrep, file ignore + watcher, shell exec, image handling, code formatters, IDE integrations)",
+        "v2/": "Session v2 work-in-progress (provider parity checklist + v2 session)",
+        "id/, env/, util/": "Identifiers, env wrappers, misc utilities"
+      },
+      "dependencies": ["@opencode-ai/core", "@opencode-ai/http-recorder", "@opencode-ai/llm", "@opencode-ai/plugin", "@opencode-ai/script", "@opencode-ai/sdk", "@opencode-ai/ui"],
+      "ambientGlobals": ["AI_SDK_LOG_WARNINGS=false (set in server.ts to silence ai-sdk warnings on stdout)"]
+    },
+    {
+      "name": "@opencode-ai/core",
+      "path": "packages/core",
+      "role": "Foundational utilities shared by opencode and surfaces — no opencode-specific business logic.",
+      "layer": "foundation",
+      "exports": "./* → ./src/*.ts (deep imports like @opencode-ai/core/util/log)",
+      "keyDirectories": {
+        "src/effect/": "Logger, observability, runtime, service-use helper, memo-map",
+        "src/util/": "log, error, path, hash, glob, slug, flock, encode, identifier, retry, lazy, wildcard, opencode-process metadata, etc.",
+        "src/plugin/": "Plugin runtime utilities (boot, env, layer map example, provider config)",
+        "src/installation/": "Version + install path resolution",
+        "src/github-copilot/": "Copilot helper (lifted out so multiple packages can share)",
+        "src/flag/": "Feature flags",
+        "Top-level .ts files": "account, agent, aisdk, catalog, event, filesystem, git, global, location, model, models-dev, npm, npm-config, permission, process, project, provider, schema, session-event, session-message, session-prompt, session.ts (slimmed runtime shape), tool-output, v2-schema"
+      },
+      "dependencies": ["@ai-sdk/* (many providers)", "effect", "drizzle-orm", "zod"]
+    },
+    {
+      "name": "@opencode-ai/llm",
+      "path": "packages/llm",
+      "role": "Provider + protocol layer. Translates between opencode tool/message shape and each LLM wire protocol.",
+      "layer": "integration",
+      "exports": [".", "./route", "./provider", "./providers/*", "./protocols/*"],
+      "providers": ["amazon-bedrock", "anthropic", "azure", "cloudflare", "github-copilot", "google", "openai", "openai-compatible", "openai-compatible-profile", "openrouter", "xai"],
+      "protocols": ["anthropic-messages", "bedrock-converse", "bedrock-event-stream", "gemini", "openai-chat", "openai-compatible-chat", "openai-responses"],
+      "routeSubdir": "src/route/ — Auth, endpoint, executor, framing, transport, client, protocol switcher",
+      "patterns": "Provider exposes a ModelFactory; route/executor calls protocol-specific encoder/decoder; tool-runtime mediates tool calls.",
+      "dependencies": ["effect", "@opencode-ai/http-recorder (devDep, for replay tests)", "aws4fetch", "@smithy/eventstream-codec"]
+    },
+    {
+      "name": "@opencode-ai/ui",
+      "path": "packages/ui",
+      "role": "Design-system level Solid components, theme, icons, audio, i18n, Pierre diffs, hooks, context.",
+      "layer": "surface",
+      "exports": "Granular per-folder (components, hooks, theme, styles, v2, icons, fonts, audio)",
+      "dependencies": ["@kobalte/core", "@opencode-ai/core", "@opencode-ai/sdk", "tailwindcss", "solid-js"]
+    },
+    {
+      "name": "@opencode-ai/app",
+      "path": "packages/app",
+      "role": "Embeddable Solid web app — the actual user shell rendered in Electron desktop and on the web.",
+      "layer": "surface",
+      "exports": [".", "./desktop-menu", "./vite", "./index.css"],
+      "keyDirectories": {
+        "src/pages/": "Home, session, layouts",
+        "src/components/": "Dialogs (provider/model/MCP/project/file/fork/release/settings), prompt-input, status popovers, terminal, titlebar",
+        "src/hooks/, src/context/, src/i18n/, src/theme/": "Solid plumbing",
+        "src/addons/, src/utils/": "Misc"
+      },
+      "dependencies": ["@kobalte/core", "@opencode-ai/core", "@opencode-ai/sdk", "@opencode-ai/ui", "@sentry/solid", "solid-js"]
+    },
+    {
+      "name": "@opencode-ai/desktop",
+      "path": "packages/desktop",
+      "role": "Electron shell wrapping @opencode-ai/app. Owns updater, windows, IPC, sidecar opencode process.",
+      "layer": "surface",
+      "subdirs": ["src/main (apps, sidecar, ipc, updater, windows, menu, shell-env, store)", "src/preload", "src/renderer"],
+      "dependencies": ["@opencode-ai/app", "@opencode-ai/ui", "@lydell/node-pty", "electron-*"]
+    },
+    {
+      "name": "@opencode-ai/web",
+      "path": "packages/web",
+      "role": "Marketing site + docs (Astro + Starlight on Cloudflare). Imports `opencode` workspace package to pull live schema/types for docs.",
+      "layer": "surface"
+    },
+    {
+      "name": "@opencode-ai/console-app",
+      "path": "packages/console/app",
+      "role": "Cloud console (Auth via @openauthjs/openauth, Stripe billing, model/provider management, usage charts).",
+      "layer": "surface+application",
+      "dependencies": ["@opencode-ai/console-core", "@opencode-ai/console-mail", "@opencode-ai/console-resource", "@opencode-ai/ui", "solid-js", "solid-stripe", "@kobalte/core"]
+    },
+    {
+      "name": "@opencode-ai/console-core",
+      "path": "packages/console/core",
+      "role": "Domain layer for the console — Drizzle + PlanetScale + Postgres + Stripe. Exports per-module surfaces via ./*.js.",
+      "layer": "domain"
+    },
+    {
+      "name": "@opencode-ai/console-function",
+      "path": "packages/console/function",
+      "role": "Cloudflare Workers: OpenAuth, AI provider proxies (anthropic/openai), webhooks.",
+      "layer": "application"
+    },
+    {
+      "name": "@opencode-ai/console-mail",
+      "path": "packages/console/mail",
+      "role": "JSX-Email templates."
+    },
+    {
+      "name": "@opencode-ai/console-resource",
+      "path": "packages/console/resource",
+      "role": "SST resource binding. Has two export conditions: cloudflare (production) and node — keeps types portable across envs."
+    },
+    {
+      "name": "@opencode-ai/enterprise",
+      "path": "packages/enterprise",
+      "role": "Teams-focused site (SolidStart + Nitro). Builds to Cloudflare via OPENCODE_DEPLOYMENT_TARGET=cloudflare.",
+      "layer": "surface+application"
+    },
+    {
+      "name": "@opencode-ai/function",
+      "path": "packages/function",
+      "role": "Public-facing Cloudflare Worker: Hono + GitHub App auth + JOSE.",
+      "layer": "application"
+    },
+    {
+      "name": "@opencode-ai/stats-server",
+      "path": "packages/stats/server",
+      "role": "Firehose-based stats ingestion (Effect).",
+      "layer": "integration"
+    },
+    {
+      "name": "@opencode-ai/stats-core",
+      "path": "packages/stats/core",
+      "role": "Athena + PlanetScale + Drizzle domain for stats.",
+      "layer": "domain"
+    },
+    {
+      "name": "@opencode-ai/stats-app",
+      "path": "packages/stats/app",
+      "role": "Solid dashboard for stats.",
+      "layer": "surface"
+    },
+    {
+      "name": "@opencode-ai/plugin",
+      "path": "packages/plugin",
+      "role": "Public plugin API. Re-exports SDK types; provides ./tool and ./tui surfaces.",
+      "layer": "application",
+      "peerDeps": ["@opentui/core", "@opentui/keymap", "@opentui/solid"]
+    },
+    {
+      "name": "@opencode-ai/sdk",
+      "path": "packages/sdk/js",
+      "role": "Typed client + server-launcher. v1 hand-written + v2 generated from OpenAPI (script/build.ts uses @hey-api/openapi-ts).",
+      "layer": "application"
+    },
+    {
+      "name": "@opencode-ai/effect-drizzle-sqlite",
+      "path": "packages/effect-drizzle-sqlite",
+      "role": "Effect-flavored bun-sqlite adapter + migrator + drizzle sqlite-core integration.",
+      "layer": "foundation"
+    },
+    {
+      "name": "@opencode-ai/http-recorder",
+      "path": "packages/http-recorder",
+      "role": "Record/replay HTTP traffic — used by llm to make provider tests deterministic.",
+      "layer": "foundation"
+    },
+    {
+      "name": "@opencode-ai/script",
+      "path": "packages/script",
+      "role": "Tiny utility library (semver helpers) shared by build scripts."
+    },
+    {
+      "name": "@opencode-ai/slack",
+      "path": "packages/slack",
+      "role": "Slack bot using @slack/bolt; talks to opencode via the SDK.",
+      "layer": "application"
+    },
+    {
+      "name": "@opencode-ai/storybook",
+      "path": "packages/storybook",
+      "role": "Storybook for @opencode-ai/ui (storybook-solidjs-vite)."
+    }
+  ],
+
+  "edges": [
+    { "from": "@opencode-ai/app", "to": "@opencode-ai/core", "kind": "workspace" },
+    { "from": "@opencode-ai/app", "to": "@opencode-ai/sdk", "kind": "workspace" },
+    { "from": "@opencode-ai/app", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/desktop", "to": "@opencode-ai/app", "kind": "workspace" },
+    { "from": "@opencode-ai/desktop", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/enterprise", "to": "@opencode-ai/core", "kind": "workspace" },
+    { "from": "@opencode-ai/enterprise", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/llm", "to": "@opencode-ai/http-recorder", "kind": "workspace-dev" },
+    { "from": "opencode", "to": "@opencode-ai/core", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/http-recorder", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/llm", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/plugin", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/script", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/sdk", "kind": "workspace" },
+    { "from": "opencode", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/plugin", "to": "@opencode-ai/sdk", "kind": "workspace" },
+    { "from": "@opencode-ai/slack", "to": "@opencode-ai/sdk", "kind": "workspace" },
+    { "from": "@opencode-ai/storybook", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/ui", "to": "@opencode-ai/core", "kind": "workspace" },
+    { "from": "@opencode-ai/ui", "to": "@opencode-ai/sdk", "kind": "workspace" },
+    { "from": "@opencode-ai/console-app", "to": "@opencode-ai/console-core", "kind": "workspace" },
+    { "from": "@opencode-ai/console-app", "to": "@opencode-ai/console-mail", "kind": "workspace" },
+    { "from": "@opencode-ai/console-app", "to": "@opencode-ai/console-resource", "kind": "workspace" },
+    { "from": "@opencode-ai/console-app", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/console-core", "to": "@opencode-ai/console-mail", "kind": "workspace" },
+    { "from": "@opencode-ai/console-core", "to": "@opencode-ai/console-resource", "kind": "workspace" },
+    { "from": "@opencode-ai/console-function", "to": "@opencode-ai/console-core", "kind": "workspace" },
+    { "from": "@opencode-ai/console-function", "to": "@opencode-ai/console-resource", "kind": "workspace" },
+    { "from": "@opencode-ai/stats-app", "to": "@opencode-ai/stats-core", "kind": "workspace" },
+    { "from": "@opencode-ai/stats-app", "to": "@opencode-ai/ui", "kind": "workspace" },
+    { "from": "@opencode-ai/stats-server", "to": "@opencode-ai/stats-core", "kind": "workspace" }
+  ],
+
+  "patterns": [
+    {
+      "id": "effect-everywhere",
+      "name": "Effect-based runtime",
+      "summary": "Long-running services (server, session, llm, lsp, pty, sync) are Effect programs, composed via Layers, providing services through Context.Service. Each CLI subcommand uses `effectCmd(...)` to thread Effect through yargs.",
+      "examples": ["packages/opencode/src/server/server.ts (listenEffect, listenerLayer, HttpRouter.serve)", "packages/opencode/src/cli/cmd/serve.ts (Effect.fn handler)", "packages/core/src/effect/service-use.ts"],
+      "gotchas": ["A fresh ConfigProvider is provided per listener so `Config.string(...)` reflects current process.env — see server.ts comment.", "Don't smuggle stable services via Effect.provideService inside handlers — use HttpApiBuilder.group layer construction."]
+    },
+    {
+      "id": "httpapi-effect",
+      "name": "Effect HttpApi grouping",
+      "summary": "Routes are grouped by domain (config, session, project, tui, sync, file, mcp, pty, permission, question, provider, workspace, control, event, experimental, instance, metadata, query, global, v2). Each group is a `HttpApiBuilder.group(...)` with handlers in `handlers/<group>.ts`.",
+      "rule": "Use HttpApiBuilder.group for normal endpoints + SSE; use raw HttpRouter.use only for WS upgrade or catch-all. See `packages/opencode/src/server/routes/instance/httpapi/AGENTS.md`.",
+      "errors": "Public JSON errors are explicit Schema.ErrorClass contracts (e.g. ApiNotFoundError). Translate domain errors at handler boundary."
+    },
+    {
+      "id": "sync-event-sourcing",
+      "name": "SyncEvent + Bus dual-channel events",
+      "summary": "`SyncEvent.define(...)` declares an event with `type, version, aggregate, schema` (optional `busSchema` for backwards compat). `SyncEvent.run(...)` records the event before mutation; projectors apply mutations. Sync events automatically re-publish to `Bus`. `Bus.subscribe(SyncDef, handler)` still works.",
+      "rationale": "Enables single-writer event sourcing for session replay/sync across devices without breaking existing Bus subscribers or SDK clients.",
+      "doNot": ["Bus.publish a sync-event definition directly", "Touch the DB directly inside handlers — go through projectors"],
+      "reference": "packages/opencode/src/sync/README.md"
+    },
+    {
+      "id": "drizzle-schema-style",
+      "name": "Snake_case Drizzle schemas",
+      "summary": "Field names use snake_case (e.g. `project_id: text()`) so column names need no string redefinition. Bun-sqlite locally; PlanetScale/Postgres for cloud (console/stats).",
+      "imports": "opencode uses #db (Bun) vs #db (Node) via `imports` map in package.json — pick the correct driver at runtime."
+    },
+    {
+      "id": "self-export-config",
+      "name": "Self-export config pattern",
+      "summary": "Each `src/config/*` module starts with `export * as ConfigAgent from \"./agent\"` so consumers see a namespaced surface."
+    },
+    {
+      "id": "conditional-runtime",
+      "name": "Bun-first with Node compat",
+      "summary": "packages/opencode/package.json `imports` re-routes `#db` and `#pty` to Bun or Node variants. Catalog overrides + patchedDependencies ensure consistent native module behavior.",
+      "browserBuild": "`bun run --conditions=browser` is used for `bun dev` so the same source can target browser-like environments where node:* shims kick in."
+    },
+    {
+      "id": "tool-registry-plugin",
+      "name": "Tool registry with plugin extension",
+      "summary": "`packages/opencode/src/tool/registry.ts` exposes built-in tools (Edit, Glob, Grep, Read, Write, Shell, Task, TodoWrite, WebFetch, WebSearch, Plan, Question, RepoClone, RepoOverview, ApplyPatch, LSP, Skill, McpWebsearch). Plugins can contribute additional tools through the loader in `packages/opencode/src/plugin/loader.ts`.",
+      "toolFiles": "Each tool has `<name>.ts` (logic) and `<name>.txt` (prompt fragment)."
+    },
+    {
+      "id": "agents-and-permissions",
+      "name": "Agents + permissions",
+      "summary": "Built-in agents: `build` (default, full access), `plan` (read-only — denies edits, asks for shell), and `general` subagent. Permission evaluation in `permission/evaluate.ts` ties together allow/deny/ask rules per tool/resource.",
+      "subagents": "`agent/subagent-permissions.ts` defines tightened permission set for nested subagents."
+    },
+    {
+      "id": "acp",
+      "name": "Agent Communication Protocol",
+      "summary": "`packages/opencode/src/acp/` (legacy) and `acp-next/` (newer typed Effect implementation) expose opencode as an ACP server so editors/IDEs can drive sessions. acp-next/agent.ts is the host glue."
+    },
+    {
+      "id": "plugin-loader",
+      "name": "External + first-party plugins",
+      "summary": "`plugin/loader.ts` installs npm plugins under the user's opencode home; `plugin/install.ts` adds/removes plugins. First-party shims (xai, azure, cloudflare, codex, digitalocean, github-copilot) live alongside the loader so they ship with the binary."
+    },
+    {
+      "id": "logging",
+      "name": "Structured logging via Log",
+      "summary": "`@opencode-ai/core/util/log` creates per-service loggers (e.g. `Log.create({ service: \"server\" })`). Init in CLI middleware honors `--print-logs` and `--log-level`."
+    },
+    {
+      "id": "process-metadata",
+      "name": "Process metadata + lifecycle",
+      "summary": "`ensureProcessMetadata(\"main\")` is called at CLI bootstrap so child processes inherit a consistent tag. Unhandled rejections and uncaught exceptions are logged through Log.Default."
+    }
+  ],
+
+  "dataFlows": [
+    {
+      "id": "user-prompt-to-tool-call",
+      "name": "User prompt → assistant response with tool calls",
+      "steps": [
+        "Surface (TUI / web / desktop / SDK) calls POST /session/.../prompt on the server.",
+        "Server handler (server/routes/instance/httpapi/handlers/session.ts) yields the Session service.",
+        "Session.prompt builds the message tree, resolves model/provider via packages/llm Provider lookup, and calls the route client.",
+        "@opencode-ai/llm route/executor.ts encodes the request with the protocol matching the provider (anthropic-messages / openai-chat / gemini / bedrock-converse / openai-responses) and streams.",
+        "Streamed tool calls are mediated by llm/tool-runtime.ts which invokes the opencode ToolRegistry. Each tool runs via Effect (Permission check → execute → output).",
+        "Tool output is fed back through the protocol; assistant continues until stop condition.",
+        "Throughout, SyncEvent.run records session/message/part mutations BEFORE the DB write; projectors apply them, then Bus re-publishes for live subscribers (UI streams over WS / SSE).",
+        "Surface receives bus events through the SDK subscribe API and updates the UI."
+      ]
+    },
+    {
+      "id": "session-replay",
+      "name": "Session replay / cross-device sync",
+      "steps": [
+        "All mutating events are sync events with sequence IDs.",
+        "A secondary device requests events with `seq > last_seen` via the sync HTTP group.",
+        "Replaying the events on the secondary device reconstructs identical session state.",
+        "Single-writer assumption avoids distributed clocks (see sync/README.md)."
+      ]
+    },
+    {
+      "id": "cli-startup",
+      "name": "CLI startup (opencode default = TUI)",
+      "steps": [
+        "packages/opencode/src/index.ts: yargs middleware → Log.init, ensureProcessMetadata, JsonMigration, Database init.",
+        "If no subcommand → boots the TUI (cli/cmd/tui/app.tsx + run/runtime.* for direct mode).",
+        "Each subcommand uses effectCmd to wrap the handler in an Effect program with the right layer (instance ON/OFF)."
+      ]
+    },
+    {
+      "id": "desktop-startup",
+      "name": "Desktop (Electron) startup",
+      "steps": [
+        "packages/desktop/src/main/index.ts loads the Electron main process: store, updater, IPC, sidecar.",
+        "Sidecar spawns an opencode server (or attaches to one) and the renderer loads @opencode-ai/app via electron-vite.",
+        "App talks to the local server using @opencode-ai/sdk."
+      ]
+    },
+    {
+      "id": "stats-pipeline",
+      "name": "Stats pipeline",
+      "steps": [
+        "OpenCode clients emit telemetry → AWS Firehose.",
+        "packages/stats/server (Effect on bun) ingests and writes to S3 / Athena.",
+        "packages/stats/core queries Athena + PlanetScale via Drizzle.",
+        "packages/stats/app renders the dashboard."
+      ]
+    }
+  ],
+
+  "storage": {
+    "local": {
+      "engine": "bun:sqlite via Drizzle ORM",
+      "files": ["packages/opencode/src/storage/db.bun.ts", "packages/opencode/src/storage/db.node.ts", "packages/opencode/src/storage/schema.ts", "packages/opencode/src/storage/schema.sql.ts", "packages/opencode/src/session/session.sql.ts", "packages/opencode/src/project/project.sql.ts", "packages/opencode/src/share/share.sql.ts", "packages/opencode/src/sync/event.sql.ts"],
+      "migration": "packages/opencode/src/storage/json-migration.ts converts old JSON state into SQLite at first launch.",
+      "drizzleCmd": "From packages/opencode: `bun db ...` (drizzle-kit alias)."
+    },
+    "cloud": {
+      "engine": ["PlanetScale (MySQL)", "Postgres (postgres-js)", "AWS Athena (analytics)"],
+      "owners": ["packages/console/core (auth + billing + provider mgmt)", "packages/stats/core (analytics)"]
+    }
+  },
+
+  "concepts": {
+    "instance": "An opencode 'instance' = a project directory. Server routes carry an x-opencode-directory header; layers/handlers receive an InstanceContext/InstanceRef per request.",
+    "session": "A session is a conversation rooted at a project. It owns messages (parts), todos, snapshots, and a permission state. Identified by a SessionID (Slug-based).",
+    "agent": "An agent is a configurable persona (system prompt + permission profile + model). Built-in: build, plan, general subagent. User can define custom agents under .opencode/agents (see opencode docs).",
+    "tool": "A tool is `(name, schema, prompt.txt, execute)`. Tools run inside an Effect with HttpClient + ChildProcessSpawner + Permission service in context.",
+    "permission": "Permission is a layered policy evaluated by `permission/evaluate.ts`. Tools call Permission.check before performing side-effects; the host UI shows the user `ask` prompts.",
+    "subagent": "A spawned sub-conversation (Task tool) that inherits a tightened permission set.",
+    "skill": "A reusable prompt fragment discovered from .opencode/skills/. Triggered by the Skill tool or by user invocation.",
+    "command": "User-defined slash commands (.opencode/commands/) executed in cli/cmd/run + the TUI command palette.",
+    "snapshot": "Filesystem snapshot used for revert support (linked to a session).",
+    "share": "Public read-only session shares served by share/* + server group.",
+    "bus": "Process-local pub/sub abstraction over Effect. UI / WS / SDK subscribe through this.",
+    "syncEvent": "Event-sourced mutation log on top of Bus. ALL session-mutating events go through SyncEvent.run.",
+    "projector": "A handler that, given a sync event, applies the DB mutation. Lives in `server/init-projectors.ts` + `session/projectors.ts` + `session/projectors-next.ts`."
+  },
+
+  "agentGuidance": {
+    "startHere": [
+      "Read packages/opencode/src/index.ts to understand CLI dispatch.",
+      "Read packages/opencode/src/server/server.ts + routes/instance/httpapi/AGENTS.md to understand the HTTP shape and routing rules.",
+      "Read packages/opencode/src/sync/README.md before touching any session state mutation.",
+      "Read AGENTS.md at repo root for style rules (no try/catch unless needed, no any, prefer Bun APIs, conventional commits)."
+    ],
+    "wheretoAdd": {
+      "newCliCommand": "packages/opencode/src/cli/cmd/<name>.ts + register in packages/opencode/src/index.ts.",
+      "newServerRoute": "packages/opencode/src/server/routes/instance/httpapi/groups/<group>.ts (schema) + handlers/<group>.ts (Effect handler). Use HttpApiBuilder.group; declare errors as Schema.ErrorClass.",
+      "newTool": "packages/opencode/src/tool/<name>.ts + <name>.txt + register in tool/registry.ts.",
+      "newProvider": "Prefer a PR to https://github.com/anomalyco/models.dev (zero code). For SDK-level providers, packages/llm/src/providers/<name>.ts + protocol if novel.",
+      "newSessionMutation": "Add a SyncEvent.define in the relevant session/*.ts; write a projector in session/projectors.ts; never write to the DB directly from a handler.",
+      "newAgent": "User-config under .opencode/agents/<name>.md; in-code adjustments in packages/opencode/src/agent/agent.ts.",
+      "newPlugin": "Use @opencode-ai/plugin types; install via `opencode plug add` (see packages/opencode/src/plugin/install.ts).",
+      "newUiComponent": "packages/ui/src/components or @opencode-ai/app/src/components depending on reuse. Storybook story under packages/storybook."
+    },
+    "testing": {
+      "rule": "Tests CANNOT run from repo root (a guard exits 1). Run inside the package: `cd packages/opencode && bun test --timeout 30000`.",
+      "patterns": "Avoid mocks; tests exercise real code paths. The llm package leverages @opencode-ai/http-recorder for deterministic provider tests.",
+      "typecheck": "`bun typecheck` per-package (uses tsgo / @typescript/native-preview)."
+    },
+    "build": {
+      "binary": "packages/opencode/script/build.ts (use --single for a standalone executable). `bun postinstall` runs fix-node-pty.",
+      "sdk": "packages/sdk/js/script/build.ts regenerates the JS SDK (run after API changes).",
+      "deploy": "SST entrypoint sst.config.ts → infra/app.ts (+ lake.ts + stats.ts + console.ts + enterprise.ts + monitoring.ts under appropriate stages)."
+    },
+    "gotchas": [
+      "Local `main` branch ref may not exist — diff against `dev` or `origin/dev`.",
+      "AI_SDK_LOG_WARNINGS global is set to false in server.ts to keep ai-sdk warnings out of stdout — do not remove without reading the comment.",
+      "Effect's default ConfigProvider snapshots process.env once — server.listen installs a fresh ConfigProvider per call (see server.ts ~line 116).",
+      "`HttpRouter.provideRequest(...)` should only be used for request-level dependencies — stable services go at layer boundaries.",
+      "Don't `Bus.publish` a SyncEvent definition; always `SyncEvent.run`.",
+      "Drizzle fields use snake_case; do not redefine column names as strings.",
+      "Effect helpers should not return `Effect` if they do no effectful work; keep synchronous parsing synchronous.",
+      "Run typecheck via `bun typecheck` (uses tsgo), never `tsc` directly.",
+      "node-pty native is patched (script/fix-node-pty.ts); rebuilds may be needed after dep changes.",
+      "First-party plugin shims live in `packages/opencode/src/plugin/` AND `packages/core/src/plugin/` — don't confuse them (core/plugin has runtime utilities; opencode/plugin has the loader and provider shims).",
+      "There are two ACP layers: `acp/` (older) and `acp-next/` (newer Effect-typed). New work goes in acp-next."
+    ],
+    "commands": {
+      "dev": "bun dev",
+      "devOnFolder": "bun dev <directory>",
+      "devOnSelf": "bun dev .",
+      "typecheck": "cd packages/opencode && bun typecheck",
+      "test": "cd packages/opencode && bun test",
+      "headlessServer": "bun dev serve (or opencode serve in prod)",
+      "lint": "bun lint (oxlint)"
+    },
+    "contributing": "See CONTRIBUTING.md. Accepted PRs: bug fixes, additional LSPs / formatters, perf improvements, new provider support (mostly models.dev), env-specific quirks, missing standard behavior, docs. UI / core product features require a design review first."
+  },
+
+  "externalIntegrations": {
+    "modelProviders": ["Anthropic", "OpenAI", "Google (Gemini + Vertex)", "Amazon Bedrock", "Azure OpenAI", "OpenRouter", "xAI", "Groq", "Cerebras", "Cohere", "DeepInfra", "Mistral", "Perplexity", "TogetherAI", "Vercel", "Alibaba", "GitHub Copilot"],
+    "auth": ["OpenAuth (@openauthjs/openauth) for the cloud console"],
+    "telemetry": ["OpenTelemetry via @effect/opentelemetry", "Sentry on the app + enterprise"],
+    "infra": ["Cloudflare (Workers + Pages + R2)", "AWS (Firehose, S3, Athena, STS)", "PlanetScale (MySQL)", "Postgres (postgres-js)", "Stripe (billing)", "Honeycomb (monitoring)"],
+    "editorIntegration": ["VSCode extension (publish-vscode workflow)", "ACP host (acp-next)", "MCP (`mcp/`) — both server-side and client-side OAuth"],
+    "marketplaces": ["NPM (`opencode-ai`)", "Homebrew (anomalyco/tap)", "Scoop", "Chocolatey", "Arch (pacman / AUR)", "Nix (flake.nix)", "mise"]
+  },
+
+  "fileMap": {
+    "highSignalFiles": [
+      "packages/opencode/src/index.ts",
+      "packages/opencode/src/server/server.ts",
+      "packages/opencode/src/server/routes/instance/httpapi/AGENTS.md",
+      "packages/opencode/src/session/session.ts",
+      "packages/opencode/src/session/processor.ts",
+      "packages/opencode/src/tool/registry.ts",
+      "packages/opencode/src/sync/README.md",
+      "packages/opencode/src/cli/cmd/serve.ts",
+      "packages/opencode/src/cli/cmd/run.ts",
+      "packages/llm/src/index.ts",
+      "packages/llm/src/route/executor.ts",
+      "packages/llm/src/tool-runtime.ts",
+      "packages/core/src/effect/service-use.ts",
+      "AGENTS.md",
+      "CONTRIBUTING.md",
+      "turbo.json",
+      "sst.config.ts"
+    ]
+  }
+}
+</script>
+    <script>
+      const data = JSON.parse(document.getElementById("arch-data").textContent);
+
+      // Safe element creator. Never injects HTML.
+      function h(tag, opts = {}, ...kids) {
+        const el = tag.includes(":") ? document.createElementNS("http://www.w3.org/2000/svg", tag.split(":")[1]) : document.createElement(tag);
+        if (opts.cls) el.className = opts.cls;
+        if (opts.text != null) el.textContent = String(opts.text);
+        if (opts.attrs) for (const k in opts.attrs) el.setAttribute(k, opts.attrs[k]);
+        if (opts.on) for (const k in opts.on) el.addEventListener(k, opts.on[k]);
+        if (opts.style) for (const k in opts.style) el.style[k] = opts.style[k];
+        for (const kid of kids) {
+          if (kid == null) continue;
+          el.appendChild(typeof kid === "string" ? document.createTextNode(kid) : kid);
+        }
+        return el;
+      }
+      const NS = "http://www.w3.org/2000/svg";
+      function svgEl(tag, attrs = {}) {
+        const el = document.createElementNS(NS, tag);
+        for (const k in attrs) el.setAttribute(k, attrs[k]);
+        return el;
+      }
+
+      // Tabs
+      const tabs = document.querySelectorAll("nav.tabs button");
+      const sections = document.querySelectorAll("main > section");
+      tabs.forEach(btn => btn.addEventListener("click", () => {
+        tabs.forEach(b => b.classList.remove("active"));
+        sections.forEach(s => s.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.dataset.tab).classList.add("active");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }));
+
+      // Hero
+      document.getElementById("hero-title").textContent = data.meta.name + " · " + data.meta.tagline;
+      document.getElementById("hero-tagline").textContent =
+        "A bun-first TypeScript monorepo. " +
+        data.packages.length + " workspace packages, " +
+        data.entryPoints.length + " entry points, " +
+        data.patterns.length + " documented patterns. " +
+        "Effect-based runtime, Drizzle on SQLite/PlanetScale, SolidJS surfaces, SST for cloud infra.";
+      const badges = [
+        ["Runtime", "Bun 1.3+"],
+        ["Orchestrator", "Turborepo"],
+        ["UI", "SolidJS + Kobalte"],
+        ["TUI", "OpenTUI"],
+        ["HTTP", "Effect HttpApi"],
+        ["DB", "Drizzle + bun:sqlite"],
+        ["Infra", "SST · Cloudflare · AWS"],
+        ["Branch", data.meta.defaultBranch],
+      ];
+      const badgeBox = document.getElementById("hero-badges");
+      badges.forEach(([k, v]) => {
+        const el = h("span", { cls: "badge" });
+        el.appendChild(document.createTextNode(k + " "));
+        el.appendChild(h("b", { text: v }));
+        badgeBox.appendChild(el);
+      });
+
+      // Entry points
+      const entriesEl = document.getElementById("entries");
+      data.entryPoints.forEach(ep => {
+        const c = h("div", { cls: "card", on: { click: () => openEntry(ep) } });
+        const head = h("h3", {});
+        head.appendChild(document.createTextNode(ep.name + " "));
+        head.appendChild(h("span", { cls: "layer-pill layer-application", text: ep.kind }));
+        c.appendChild(head);
+        c.appendChild(h("div", { cls: "role", text: ep.description || "" }));
+        if (ep.file) {
+          const deps = h("div", { cls: "deps" });
+          deps.appendChild(h("span", { cls: "mono", text: ep.file }));
+          c.appendChild(deps);
+        }
+        entriesEl.appendChild(c);
+      });
+
+      // Layers
+      const layersEl = document.getElementById("layers-list");
+      data.layers.forEach(layer => {
+        const row = h("div", { cls: "layer-row" });
+        const head = h("h3");
+        head.appendChild(h("span", { cls: "layer-pill layer-" + layer.id, text: layer.id }));
+        head.appendChild(document.createTextNode(layer.name));
+        row.appendChild(head);
+        row.appendChild(h("div", { cls: "layer-desc", text: layer.description }));
+        const cards = h("div", { cls: "layer-cards" });
+        const pkgsInLayer = data.packages.filter(p => (p.layer || "").startsWith(layer.id));
+        pkgsInLayer.forEach(p => {
+          const m = h("div", { cls: "layer-mini", on: { click: () => openPackage(p) } });
+          m.appendChild(h("div", { cls: "nm", text: p.name }));
+          m.appendChild(h("div", { cls: "pth", text: p.path }));
+          cards.appendChild(m);
+        });
+        if (pkgsInLayer.length === 0) {
+          const note = h("div", { cls: "layer-mini", style: { cursor: "default" } });
+          note.appendChild(h("div", { cls: "pth", text: layer.packages.join(", ") }));
+          cards.appendChild(note);
+        }
+        row.appendChild(cards);
+        layersEl.appendChild(row);
+      });
+
+      // Packages
+      const pkgListEl = document.getElementById("packages-list");
+      document.getElementById("pkg-count").textContent = data.packages.length;
+      function renderPackages(filter = "all", query = "") {
+        pkgListEl.replaceChildren();
+        data.packages
+          .filter(p => filter === "all" || (p.layer || "").startsWith(filter))
+          .filter(p => !query || (p.name + " " + p.path + " " + (p.role || "")).toLowerCase().includes(query.toLowerCase()))
+          .forEach(p => {
+            const layerKey = (p.layer || "").split("+")[0] || "multi";
+            const card = h("div", { cls: "card", on: { click: () => openPackage(p) } });
+            const head = h("h3");
+            head.appendChild(document.createTextNode(p.name + " "));
+            head.appendChild(h("span", { cls: "layer-pill layer-" + layerKey, text: layerKey }));
+            card.appendChild(head);
+            card.appendChild(h("div", { cls: "role", text: p.role || "" }));
+            const deps = h("div", { cls: "deps" });
+            (p.dependencies || []).slice(0, 5).forEach(d => {
+              deps.appendChild(h("span", { text: d.replace("@opencode-ai/", "") }));
+            });
+            card.appendChild(deps);
+            pkgListEl.appendChild(card);
+          });
+      }
+      renderPackages();
+      let curFilter = "all";
+      document.querySelectorAll(".filter-chip").forEach(chip => chip.addEventListener("click", () => {
+        document.querySelectorAll(".filter-chip").forEach(c => c.classList.remove("active"));
+        chip.classList.add("active");
+        curFilter = chip.dataset.filter;
+        renderPackages(curFilter, document.getElementById("pkg-search").value);
+      }));
+      document.getElementById("pkg-search").addEventListener("input", e =>
+        renderPackages(curFilter, e.target.value)
+      );
+
+      // Dependency graph
+      const layout = {
+        surface:     { y: 80,  color: "#eb6f92" },
+        application: { y: 200, color: "#f6c177" },
+        domain:      { y: 320, color: "#c4a7e7" },
+        integration: { y: 440, color: "#7aa2f7" },
+        foundation:  { y: 560, color: "#95e6cb" },
+      };
+      const nodeMap = {};
+      const byLayer = {};
+      data.packages.forEach(p => {
+        const k = (p.layer || "").split("+")[0];
+        if (!layout[k]) return;
+        (byLayer[k] ||= []).push(p);
+      });
+      const svg = document.getElementById("dep-graph");
+      const W = 1320, PAD = 60;
+      Object.keys(byLayer).forEach(layerKey => {
+        const list = byLayer[layerKey];
+        const span = W - 2 * PAD;
+        list.forEach((p, i) => {
+          const x = PAD + (span * (i + 0.5)) / list.length;
+          nodeMap[p.name] = { x, y: layout[layerKey].y, layer: layerKey, pkg: p };
+        });
+      });
+      Object.entries(layout).forEach(([k, v]) => {
+        const t = svgEl("text", {
+          x: 12, y: v.y + 4, fill: v.color,
+          "font-size": 11, "font-family": "ui-monospace, Menlo, monospace",
+          "font-weight": 600,
+        });
+        t.textContent = k.toUpperCase();
+        svg.appendChild(t);
+      });
+      // Marker arrow
+      const defs = svgEl("defs");
+      const marker = svgEl("marker", {
+        id: "arrow", markerWidth: 8, markerHeight: 8,
+        refX: 6, refY: 3, orient: "auto",
+      });
+      const markerPath = svgEl("path", { d: "M0,0 L6,3 L0,6 Z", fill: "#4a5067" });
+      marker.appendChild(markerPath);
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+
+      data.edges.forEach(e => {
+        const a = nodeMap[e.from], b = nodeMap[e.to];
+        if (!a || !b) return;
+        const my = (a.y + b.y) / 2;
+        const path = svgEl("path", {
+          d: `M ${a.x} ${a.y + 16} C ${a.x} ${my}, ${b.x} ${my}, ${b.x} ${b.y - 16}`,
+          fill: "none", stroke: "#3a4156",
+          "stroke-width": 1,
+          opacity: e.kind === "workspace-dev" ? "0.35" : "0.6",
+          "marker-end": "url(#arrow)",
+        });
+        if (e.kind === "workspace-dev") path.setAttribute("stroke-dasharray", "3,4");
+        svg.appendChild(path);
+      });
+
+      Object.entries(nodeMap).forEach(([name, n]) => {
+        const g = svgEl("g", { transform: `translate(${n.x},${n.y})` });
+        g.style.cursor = "pointer";
+        const w = Math.max(120, name.length * 6.4);
+        g.appendChild(svgEl("rect", {
+          x: -w / 2, y: -14, width: w, height: 28, rx: 6,
+          fill: "#1c2030", stroke: layout[n.layer].color, "stroke-width": 1.2,
+        }));
+        const t = svgEl("text", {
+          "text-anchor": "middle", y: 4, fill: "#e6e9f2",
+          "font-size": 11, "font-family": "ui-monospace, Menlo, monospace",
+        });
+        t.textContent = name.replace("@opencode-ai/", "");
+        g.appendChild(t);
+        g.addEventListener("click", () => openPackage(n.pkg));
+        svg.appendChild(g);
+      });
+
+      // Data flow
+      const flowEl = document.getElementById("flow-list");
+      data.dataFlows.forEach(f => {
+        const c = h("div", { cls: "flow-card" });
+        c.appendChild(h("h3", { text: f.name }));
+        const ol = h("ol", { cls: "flow-steps" });
+        f.steps.forEach(s => ol.appendChild(h("li", { text: s })));
+        c.appendChild(ol);
+        flowEl.appendChild(c);
+      });
+
+      // Patterns
+      const patternsEl = document.getElementById("patterns-list");
+      data.patterns.forEach(p => {
+        const d = h("details", { cls: "pattern" });
+        d.appendChild(h("summary", { text: p.name }));
+        const body = h("div", { cls: "body" });
+        body.appendChild(h("p", { text: p.summary }));
+
+        function addLabeledList(label, items) {
+          body.appendChild(h("h4", { text: label }));
+          const ul = h("ul");
+          items.forEach(item => {
+            const li = h("li");
+            if (typeof item === "string" && /^[\w\/\.\-]+$/.test(item)) {
+              li.appendChild(h("code", { text: item }));
+            } else {
+              li.textContent = item;
+            }
+            ul.appendChild(li);
+          });
+          body.appendChild(ul);
+        }
+        function addPara(label, text) {
+          const para = h("p");
+          para.appendChild(h("b", { text: label + ": " }));
+          para.appendChild(document.createTextNode(text));
+          body.appendChild(para);
+        }
+
+        if (p.examples) addLabeledList("examples", p.examples);
+        if (p.rule) addPara("Rule", p.rule);
+        if (p.errors) addPara("Errors", p.errors);
+        if (p.gotchas) addLabeledList("gotchas", p.gotchas);
+        if (p.doNot) addLabeledList("do not", p.doNot);
+        if (p.reference) addPara("Ref", p.reference);
+        if (p.rationale) addPara("Why", p.rationale);
+        if (p.imports) addPara("Imports", p.imports);
+        if (p.browserBuild) addPara("Browser build", p.browserBuild);
+        if (p.toolFiles) addPara("Tool files", p.toolFiles);
+        if (p.subagents) addPara("Subagents", p.subagents);
+
+        d.appendChild(body);
+        patternsEl.appendChild(d);
+      });
+
+      // Guide
+      const gg = document.getElementById("guide-grid");
+      function guideCard(title, items) {
+        const c = h("div", { cls: "guide-card" });
+        c.appendChild(h("h3", { text: title }));
+        const ul = h("ul");
+        items.forEach(([key, value]) => {
+          const li = h("li");
+          if (key) {
+            li.appendChild(h("b", { text: key + ": " }));
+          }
+          if (Array.isArray(value)) {
+            value.forEach((v, i) => {
+              if (i > 0) li.appendChild(document.createTextNode(", "));
+              li.appendChild(h("code", { text: v }));
+            });
+          } else if (value && value.code) {
+            li.appendChild(h("code", { text: value.code }));
+          } else {
+            li.appendChild(document.createTextNode(value));
+          }
+          ul.appendChild(li);
+        });
+        c.appendChild(ul);
+        gg.appendChild(c);
+      }
+      guideCard("Start here", data.agentGuidance.startHere.map(s => [null, s]));
+      guideCard("Where to add things", Object.entries(data.agentGuidance.wheretoAdd));
+      guideCard("Testing", [
+        ["Rule", data.agentGuidance.testing.rule],
+        ["Patterns", data.agentGuidance.testing.patterns],
+        ["Typecheck", data.agentGuidance.testing.typecheck],
+      ]);
+      guideCard("Build & deploy", Object.entries(data.agentGuidance.build));
+      guideCard("Gotchas", data.agentGuidance.gotchas.map(g => [null, g]));
+      guideCard("Commands", Object.entries(data.agentGuidance.commands).map(([k, v]) => [k, { code: v }]));
+      guideCard("Concepts", Object.entries(data.concepts));
+      guideCard("Storage", [
+        ["Local", data.storage.local.engine],
+        ["Cloud", data.storage.cloud.engine.join(", ")],
+      ]);
+      guideCard("External integrations", [
+        ["Providers", data.externalIntegrations.modelProviders.join(", ")],
+        ["Auth", data.externalIntegrations.auth.join(", ")],
+        ["Telemetry", data.externalIntegrations.telemetry.join(", ")],
+        ["Infra", data.externalIntegrations.infra.join(", ")],
+        ["Editor", data.externalIntegrations.editorIntegration.join(", ")],
+      ]);
+      guideCard("High-signal files", data.fileMap.highSignalFiles.map(f => [null, f]));
+
+      // Detail overlay
+      const overlay = document.getElementById("overlay");
+      const detail = document.getElementById("detail-body");
+      overlay.addEventListener("click", e => { if (e.target === overlay) overlay.classList.remove("open"); });
+      document.addEventListener("keydown", e => { if (e.key === "Escape") overlay.classList.remove("open"); });
+
+      function closeBtn() {
+        return h("button", {
+          cls: "close-btn",
+          text: "close",
+          on: { click: () => overlay.classList.remove("open") },
+        });
+      }
+
+      function kvBlock(pairs) {
+        const wrap = h("div", { cls: "kv" });
+        pairs.forEach(([k, v]) => {
+          wrap.appendChild(h("b", { text: k }));
+          wrap.appendChild(h("span", { text: v }));
+        });
+        return wrap;
+      }
+
+      function listBlock(items) {
+        const ul = h("ul");
+        items.forEach(item => {
+          const li = h("li");
+          li.appendChild(h("code", { text: item }));
+          ul.appendChild(li);
+        });
+        return ul;
+      }
+
+      function openPackage(p) {
+        const layerKey = (p.layer || "").split("+")[0] || "multi";
+        const inbound = data.edges.filter(e => e.to === p.name).map(e => e.from);
+        const outbound = data.edges.filter(e => e.from === p.name).map(e => e.to);
+
+        detail.replaceChildren();
+        detail.appendChild(closeBtn());
+        detail.appendChild(h("h2", { text: p.name }));
+
+        const meta = h("div", { cls: "meta-row" });
+        meta.appendChild(h("code", { text: p.path }));
+        meta.appendChild(document.createTextNode(" · "));
+        meta.appendChild(h("span", { cls: "layer-pill layer-" + layerKey, text: layerKey }));
+        detail.appendChild(meta);
+
+        detail.appendChild(h("p", { text: p.role || "" }));
+
+        const kv = [];
+        if (p.runtime) kv.push(["runtime", p.runtime]);
+        if (p.language) kv.push(["language", p.language]);
+        if (p.exports) kv.push(["exports", Array.isArray(p.exports) ? p.exports.join(", ") : p.exports]);
+        if (p.providers) kv.push(["providers", p.providers.join(", ")]);
+        if (p.protocols) kv.push(["protocols", p.protocols.join(", ")]);
+        if (p.peerDeps) kv.push(["peer deps", p.peerDeps.join(", ")]);
+        if (p.deployTargets) kv.push(["deploy targets", p.deployTargets.join(", ")]);
+        if (kv.length) {
+          detail.appendChild(h("h4", { text: "info" }));
+          detail.appendChild(kvBlock(kv));
+        }
+        if (p.tsconfigImports) {
+          detail.appendChild(h("h4", { text: "module aliases" }));
+          detail.appendChild(kvBlock(Object.entries(p.tsconfigImports)));
+        }
+        if (p.keyDirectories) {
+          detail.appendChild(h("h4", { text: "key directories" }));
+          detail.appendChild(kvBlock(Object.entries(p.keyDirectories)));
+        }
+        if (p.dependencies && p.dependencies.length) {
+          detail.appendChild(h("h4", { text: "workspace deps" }));
+          detail.appendChild(listBlock(p.dependencies));
+        }
+        if (inbound.length) {
+          detail.appendChild(h("h4", { text: "depended on by" }));
+          detail.appendChild(listBlock(inbound));
+        }
+        if (outbound.length) {
+          detail.appendChild(h("h4", { text: "depends on" }));
+          detail.appendChild(listBlock(outbound));
+        }
+        if (p.ambientGlobals) {
+          detail.appendChild(h("h4", { text: "ambient globals" }));
+          const ul = h("ul");
+          p.ambientGlobals.forEach(g => ul.appendChild(h("li", { text: g })));
+          detail.appendChild(ul);
+        }
+        if (p.patterns) {
+          detail.appendChild(h("h4", { text: "patterns" }));
+          detail.appendChild(h("p", { text: p.patterns }));
+        }
+        if (p.subdirs) {
+          detail.appendChild(h("h4", { text: "subdirs" }));
+          detail.appendChild(listBlock(p.subdirs));
+        }
+        overlay.classList.add("open");
+      }
+
+      function openEntry(ep) {
+        detail.replaceChildren();
+        detail.appendChild(closeBtn());
+        detail.appendChild(h("h2", { text: ep.name }));
+        const meta = h("div", { cls: "meta-row" });
+        meta.appendChild(document.createTextNode("kind: "));
+        meta.appendChild(h("code", { text: ep.kind }));
+        detail.appendChild(meta);
+        detail.appendChild(h("p", { text: ep.description || "" }));
+
+        const kv = [];
+        if (ep.file) kv.push(["file", ep.file]);
+        if (ep.files) kv.push(["files", ep.files.join(", ")]);
+        if (ep.bin) kv.push(["bin", ep.bin]);
+        if (ep.exposes) kv.push(["exposes", ep.exposes]);
+        if (ep.framework) kv.push(["framework", ep.framework]);
+        if (ep.startedBy) kv.push(["started by", ep.startedBy]);
+        if (ep.authVar) kv.push(["auth env", ep.authVar]);
+        if (ep.wraps) kv.push(["wraps", ep.wraps]);
+        if (ep.alsoUsedBy) kv.push(["also used by", ep.alsoUsedBy]);
+        if (ep.extras) kv.push(["extras", ep.extras]);
+        if (ep.purpose) kv.push(["purpose", ep.purpose]);
+        if (ep.talksTo) kv.push(["talks to", ep.talksTo]);
+        if (ep.backend) kv.push(["backend", ep.backend.join(" / ")]);
+        if (ep.deployTargets) kv.push(["deploy targets", ep.deployTargets.join(", ")]);
+        if (ep.subpaths) kv.push(["subpaths", ep.subpaths.join(", ")]);
+        if (kv.length) {
+          detail.appendChild(h("h4", { text: "info" }));
+          detail.appendChild(kvBlock(kv));
+        }
+        if (ep.subcommands) {
+          detail.appendChild(h("h4", { text: "subcommands" }));
+          const row = h("div", { cls: "tag-row" });
+          ep.subcommands.forEach(s => row.appendChild(h("code", { text: s })));
+          detail.appendChild(row);
+        }
+        if (ep.pages) {
+          detail.appendChild(h("h4", { text: "pages" }));
+          detail.appendChild(listBlock(ep.pages));
+        }
+        overlay.classList.add("open");
+      }
+    </script>
+  </body>
+</html>

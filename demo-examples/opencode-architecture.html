@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>opencode — Architecture</title>
+<style>
+  :root {
+    --bg: #0e1014;
+    --bg-elev: #161922;
+    --bg-elev-2: #1d2230;
+    --border: #2a3041;
+    --border-strong: #3a4258;
+    --fg: #e7ecf3;
+    --fg-dim: #9aa5b8;
+    --fg-mute: #6b7689;
+    --accent: #ffb454;
+    --accent-2: #7ad9ff;
+    --green: #7bd88f;
+    --red: #ff6b6b;
+    --purple: #c39bff;
+    --pink: #ff8ec5;
+    --blue: #7ad9ff;
+    --orange: #ffb454;
+    --yellow: #f0d56b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(255, 180, 84, 0.08), transparent 60%),
+      radial-gradient(1000px 500px at 90% 0%, rgba(122, 217, 255, 0.06), transparent 60%),
+      var(--bg);
+  }
+  header {
+    padding: 56px 48px 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  header h1 {
+    margin: 0 0 10px;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  header h1 .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--accent); }
+  header .lede {
+    color: var(--fg-dim);
+    max-width: 760px;
+    margin: 0;
+  }
+  header .meta {
+    margin-top: 18px;
+    color: var(--fg-mute);
+    font-size: 12px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  main { padding: 0 48px 80px; max-width: 1400px; margin: 0 auto; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: 8px 0 28px;
+    padding: 12px 16px;
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+  .legend .dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 36px;
+  }
+  .pipeline .stage {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px 12px;
+    position: relative;
+  }
+  .pipeline .stage::after {
+    content: "→";
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--fg-mute);
+    font-size: 18px;
+  }
+  .pipeline .stage:last-child::after { content: ""; }
+  .pipeline .stage .num {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--fg-mute);
+  }
+  .pipeline .stage .name {
+    font-weight: 600;
+    margin: 4px 0 6px;
+    font-size: 14px;
+    color: var(--fg);
+  }
+  .pipeline .stage .desc {
+    font-size: 12px;
+    color: var(--fg-dim);
+  }
+
+  h2.section {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--fg-mute);
+    margin: 36px 0 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px 16px;
+    transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+    background: var(--bg-elev-2);
+  }
+  .card.expanded { border-color: var(--accent); }
+  .card .head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .card .head .tag {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg-elev-2);
+    color: var(--fg-dim);
+    border: 1px solid var(--border);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .card h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    flex: 1;
+  }
+  .card .chev {
+    color: var(--fg-mute);
+    font-size: 12px;
+    transition: transform 0.15s ease;
+  }
+  .card.expanded .chev { transform: rotate(90deg); }
+  .card p.summary {
+    margin: 0;
+    color: var(--fg-dim);
+    font-size: 13px;
+  }
+  .card .body {
+    display: none;
+    border-top: 1px dashed var(--border);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+  .card.expanded .body { display: block; }
+  .card .body .note {
+    color: var(--fg-dim);
+    font-size: 12.5px;
+    margin: 0 0 12px;
+  }
+  .card .body .note code {
+    background: var(--bg-elev-2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--fg);
+  }
+  .files {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .files li {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .files a {
+    color: var(--accent-2);
+    text-decoration: none;
+    border-bottom: 1px dotted transparent;
+  }
+  .files a:hover {
+    border-bottom-color: var(--accent-2);
+  }
+  .files .note {
+    color: var(--fg-mute);
+    font-size: 11.5px;
+  }
+
+  .card[data-cat="loop"]    .tag { color: var(--orange); border-color: rgba(255,180,84,0.4); }
+  .card[data-cat="tool"]    .tag { color: var(--blue);   border-color: rgba(122,217,255,0.4); }
+  .card[data-cat="perm"]    .tag { color: var(--red);    border-color: rgba(255,107,107,0.4); }
+  .card[data-cat="sandbox"] .tag { color: var(--green);  border-color: rgba(123,216,143,0.4); }
+  .card[data-cat="plugin"]  .tag { color: var(--purple); border-color: rgba(195,155,255,0.4); }
+  .card[data-cat="bus"]     .tag { color: var(--pink);   border-color: rgba(255,142,197,0.4); }
+  .card[data-cat="infra"]   .tag { color: var(--yellow); border-color: rgba(240,213,107,0.4); }
+
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--fg-mute);
+    font-size: 12px;
+    text-align: center;
+  }
+  footer code {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    color: var(--fg-dim);
+  }
+  .hint {
+    margin: 0 0 24px;
+    padding: 10px 14px;
+    background: rgba(255,180,84,0.07);
+    border-left: 3px solid var(--accent);
+    color: var(--fg-dim);
+    font-size: 12.5px;
+    border-radius: 4px;
+  }
+  .hint b { color: var(--fg); }
+  .hint code {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+    color: var(--fg);
+  }
+
+  @media (max-width: 1000px) {
+    .pipeline { grid-template-columns: repeat(2, 1fr); }
+    .pipeline .stage::after { display: none; }
+  }
+  @media (max-width: 640px) {
+    header, main { padding-left: 20px; padding-right: 20px; }
+    .pipeline { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="mono">opencode</span> — runtime architecture</h1>
+  <p class="lede">
+    How a user prompt travels through opencode: from the CLI/server, through the
+    agent loop and LLM streaming layer, out to a registry of tools that execute under
+    a permission gate and shell sandbox, with a plugin host and an event bus connecting
+    everything.
+  </p>
+  <div class="meta">
+    repo root: <span id="repoRoot"></span>
+    &nbsp;·&nbsp; package: <code>packages/opencode/src/</code>
+  </div>
+</header>
+
+<main>
+
+  <p class="hint">
+    <b>Tip:</b> click a card to expand and reveal source files. Files open via
+    <code>file://</code> links — your browser may open them as plain text, or you can right-click → "Copy link" to paste into an editor.
+  </p>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--orange)"></span>agent loop</span>
+    <span><span class="dot" style="background:var(--blue)"></span>tools</span>
+    <span><span class="dot" style="background:var(--red)"></span>permissions</span>
+    <span><span class="dot" style="background:var(--green)"></span>sandbox / shell</span>
+    <span><span class="dot" style="background:var(--purple)"></span>plugins</span>
+    <span><span class="dot" style="background:var(--pink)"></span>event bus</span>
+    <span><span class="dot" style="background:var(--yellow)"></span>infra</span>
+  </div>
+
+  <div class="pipeline">
+    <div class="stage">
+      <div class="num">01</div>
+      <div class="name">CLI / Server</div>
+      <div class="desc">Entry point: TUI command or HTTP request lands a user message in a session.</div>
+    </div>
+    <div class="stage">
+      <div class="num">02</div>
+      <div class="name">Session &amp; Processor</div>
+      <div class="desc">Persists messages, drives the loop, manages compaction and revert.</div>
+    </div>
+    <div class="stage">
+      <div class="num">03</div>
+      <div class="name">LLM stream</div>
+      <div class="desc">Builds prompts, streams tokens &amp; tool calls from the model provider.</div>
+    </div>
+    <div class="stage">
+      <div class="num">04</div>
+      <div class="name">Tools (with permission)</div>
+      <div class="desc">Each tool call is validated, gated by permission, and executed.</div>
+    </div>
+    <div class="stage">
+      <div class="num">05</div>
+      <div class="name">Bus &amp; Storage</div>
+      <div class="desc">Events flow to subscribers (UI, sync, plugins) and persist to the DB.</div>
+    </div>
+  </div>
+
+  <h2 class="section">Core modules</h2>
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    A static, self-contained snapshot generated from
+    <code>packages/opencode/src/</code> on this machine.
+    The links use absolute <code>file://</code> URLs so they only resolve while the source tree stays where it is.
+  </footer>
+</main>
+
+<script>
+  const REPO = "/home/mihai/workshop/opencode";
+
+  const MODULES = [
+    {
+      id: "agent", cat: "loop", tag: "agent",
+      title: "Agent definitions",
+      summary: "Defines primary/sub-agents, their prompts, model, allowed tools, and permission ruleset.",
+      note: { text: "An Agent.Info is the unit the loop is parameterized by — when a user (or a subagent task) starts a turn, an agent is resolved here and its prompt + ruleset are pinned for the run." },
+      files: [
+        { p: "packages/opencode/src/agent/agent.ts", n: "Agent service, Info schema, list/get/generate" },
+        { p: "packages/opencode/src/agent/subagent-permissions.ts", n: "Permission policy for subagents" },
+        { p: "packages/opencode/src/agent/generate.txt", n: "Prompt template: generate new agent" },
+        { p: "packages/opencode/src/agent/prompt", n: "Built-in agent prompts (explore, scout, …)" },
+      ],
+    },
+    {
+      id: "session", cat: "loop", tag: "session",
+      title: "Session core",
+      summary: "Owns the conversation: rows in SQLite, message tree, share/revert, slug, summary stats.",
+      note: { text: "Pure data + Effect services. The processor calls back into Session to append parts and update message rows as the LLM streams." },
+      files: [
+        { p: "packages/opencode/src/session/session.ts", n: "Session.Service: create, append, list, revert" },
+        { p: "packages/opencode/src/session/message-v2.ts", n: "Message + parts schema (current)" },
+        { p: "packages/opencode/src/session/schema.ts", n: "SessionID / MessageID / PartID brands" },
+        { p: "packages/opencode/src/session/session.sql.ts", n: "Drizzle tables for sessions/parts" },
+        { p: "packages/opencode/src/session/revert.ts", n: "Snapshot-backed undo" },
+      ],
+    },
+    {
+      id: "processor", cat: "loop", tag: "loop",
+      title: "Loop / Processor",
+      summary: "The agent loop. Pulls user input, drives LLM.stream, handles tool calls, appends parts.",
+      note: { text: "This is the heartbeat. It coordinates LLM streaming, tool execution, permission asks, and compaction — yielding events onto the Bus as it goes." },
+      files: [
+        { p: "packages/opencode/src/session/processor.ts", n: "Main loop driver (~880 LOC)" },
+        { p: "packages/opencode/src/session/run-state.ts", n: "Per-run mutable state (abort, counters)" },
+        { p: "packages/opencode/src/session/status.ts", n: "Status transitions (idle/running/error)" },
+        { p: "packages/opencode/src/session/retry.ts", n: "LLM retry policy" },
+        { p: "packages/opencode/src/session/compaction.ts", n: "Context-window compaction" },
+        { p: "packages/opencode/src/session/overflow.ts", n: "Overflow guard before send" },
+      ],
+    },
+    {
+      id: "llm", cat: "loop", tag: "llm",
+      title: "LLM stream",
+      summary: "Wraps the AI SDK and the opencode-native runtime. Returns an Effect Stream of LLMEvents.",
+      note: { text: "Two backends live side by side: the AI-SDK path (most providers) and a native streaming runtime used for opencode-hosted models." },
+      files: [
+        { p: "packages/opencode/src/session/llm.ts", n: "LLM.Service entry, stream()" },
+        { p: "packages/opencode/src/session/llm/ai-sdk.ts", n: "AI-SDK integration" },
+        { p: "packages/opencode/src/session/llm/native-runtime.ts", n: "Native streaming runtime" },
+        { p: "packages/opencode/src/session/llm/native-request.ts", n: "Native request shape" },
+        { p: "packages/opencode/src/session/llm/request.ts", n: "Common request prep" },
+        { p: "packages/opencode/src/session/system.ts", n: "Builds the system prompt" },
+      ],
+    },
+    {
+      id: "provider", cat: "loop", tag: "provider",
+      title: "Providers / models",
+      summary: "Resolves model IDs, auth, and per-provider transforms (e.g. token caps, message shape).",
+      files: [
+        { p: "packages/opencode/src/provider/provider.ts", n: "Provider.Service: default + resolution" },
+        { p: "packages/opencode/src/provider/transform.ts", n: "Provider-specific message rewrites" },
+        { p: "packages/opencode/src/provider/auth.ts", n: "Per-provider auth lookup" },
+        { p: "packages/opencode/src/provider/model-status.ts", n: "Per-model status checks" },
+        { p: "packages/opencode/src/provider/schema.ts", n: "ProviderID / ModelID brands" },
+      ],
+    },
+
+    {
+      id: "tool-core", cat: "tool", tag: "tool",
+      title: "Tool framework",
+      summary: "Defines what a tool is, wraps execute() with arg validation, output truncation, tracing.",
+      note: { text: "Tool.define returns an Effect that builds an Info. The wrapper handles InvalidArgumentsError, span attrs, and post-execute truncation." },
+      files: [
+        { p: "packages/opencode/src/tool/tool.ts", n: "Tool.define, Context, ExecuteResult" },
+        { p: "packages/opencode/src/tool/truncate.ts", n: "Output truncation service" },
+        { p: "packages/opencode/src/tool/truncation-dir.ts", n: "Overflow file scratch dir" },
+        { p: "packages/opencode/src/tool/schema.ts", n: "Common JSON Schema helpers" },
+        { p: "packages/opencode/src/tool/invalid.ts", n: "Fallback tool for unknown calls" },
+      ],
+    },
+    {
+      id: "tool-registry", cat: "tool", tag: "registry",
+      title: "Tool registry",
+      summary: "Assembles builtin + plugin + MCP tools for a given (provider, model, agent) tuple.",
+      note: { text: "Filters by agent capabilities and provider quirks, exposes named tools (e.g. task, read) the loop calls directly." },
+      files: [
+        { p: "packages/opencode/src/tool/registry.ts", n: "Registry.Service: all(), tools(), named()" },
+      ],
+    },
+    {
+      id: "tool-fs", cat: "tool", tag: "filesystem",
+      title: "Filesystem tools",
+      summary: "read / write / edit / apply_patch / glob / grep — the bread and butter.",
+      files: [
+        { p: "packages/opencode/src/tool/read.ts", n: "Read with offset/limit/pages" },
+        { p: "packages/opencode/src/tool/write.ts", n: "Whole-file write" },
+        { p: "packages/opencode/src/tool/edit.ts", n: "String-replace edit" },
+        { p: "packages/opencode/src/tool/apply_patch.ts", n: "Multi-hunk patch" },
+        { p: "packages/opencode/src/tool/glob.ts", n: "Glob search" },
+        { p: "packages/opencode/src/tool/grep.ts", n: "Ripgrep-backed search" },
+        { p: "packages/opencode/src/tool/external-directory.ts", n: "Read outside-repo guard" },
+      ],
+    },
+    {
+      id: "tool-exec", cat: "tool", tag: "execution",
+      title: "Shell & web tools",
+      summary: "shell, webfetch, websearch — the side-effect heavy ones, all behind permission gates.",
+      files: [
+        { p: "packages/opencode/src/tool/shell.ts", n: "Bash/PowerShell tool" },
+        { p: "packages/opencode/src/tool/shell/prompt.ts", n: "Shell tool params + prompt" },
+        { p: "packages/opencode/src/tool/shell/id.ts", n: "Background shell IDs" },
+        { p: "packages/opencode/src/tool/webfetch.ts", n: "WebFetch tool" },
+        { p: "packages/opencode/src/tool/websearch.ts", n: "WebSearch tool" },
+        { p: "packages/opencode/src/tool/mcp-websearch.ts", n: "MCP-backed web search variant" },
+      ],
+    },
+    {
+      id: "tool-meta", cat: "tool", tag: "meta",
+      title: "Meta tools",
+      summary: "Tools the loop uses to manage itself: subagent task spawn, todo, plan-mode, skills, repo intro.",
+      files: [
+        { p: "packages/opencode/src/tool/task.ts", n: "Spawn subagent task" },
+        { p: "packages/opencode/src/tool/todo.ts", n: "TodoWrite tool" },
+        { p: "packages/opencode/src/tool/plan.ts", n: "Plan mode enter/exit" },
+        { p: "packages/opencode/src/tool/skill.ts", n: "Skill invocation tool" },
+        { p: "packages/opencode/src/tool/question.ts", n: "AskUserQuestion tool" },
+        { p: "packages/opencode/src/tool/repo_overview.ts", n: "Repo overview tool" },
+        { p: "packages/opencode/src/tool/repo_clone.ts", n: "Repo clone tool" },
+        { p: "packages/opencode/src/tool/lsp.ts", n: "LSP tool bridge" },
+      ],
+    },
+
+    {
+      id: "permission", cat: "perm", tag: "permission",
+      title: "Permission engine",
+      summary: "The yes/no gate: rulesets, ask events, replies, persisted approvals.",
+      note: { text: "Each tool call surfaces a Permission.Request on the Bus. The CLI / UI replies once / always / reject. 'always' rules are stored against the project." },
+      files: [
+        { p: "packages/opencode/src/permission/index.ts", n: "ask(), Ruleset/Request/Reply, errors" },
+        { p: "packages/opencode/src/permission/evaluate.ts", n: "Apply ruleset to a request" },
+        { p: "packages/opencode/src/permission/arity.ts", n: "Bash argument arity matching" },
+        { p: "packages/opencode/src/permission/schema.ts", n: "PermissionID brand" },
+        { p: "packages/opencode/src/config/permission.ts", n: "ConfigPermission types" },
+      ],
+    },
+
+    {
+      id: "shell-sandbox", cat: "sandbox", tag: "sandbox",
+      title: "Shell sandbox",
+      summary: "How shells are actually spawned: discovery, kill-tree, signal handling, OS quirks.",
+      note: { text: "The shell tool calls into this module. POSIX vs PowerShell, login vs non-login, deny-list of incompatible shells (fish, nu) are decided here." },
+      files: [
+        { p: "packages/opencode/src/shell/shell.ts", n: "Discovery, killTree, META table" },
+        { p: "packages/opencode/src/pty", n: "PTY wrappers used by some tools" },
+      ],
+    },
+    {
+      id: "background", cat: "sandbox", tag: "background",
+      title: "Background jobs",
+      summary: "Long-lived processes (dev servers, watchers) the loop launches without blocking.",
+      files: [
+        { p: "packages/opencode/src/background", n: "Background.Job service folder" },
+      ],
+    },
+    {
+      id: "fs", cat: "sandbox", tag: "filesystem",
+      title: "Filesystem services",
+      summary: "Repo + path utilities, ignore handling, ripgrep wrapper, project boundary checks.",
+      files: [
+        { p: "packages/opencode/src/file", n: "ripgrep wrapper, file services" },
+        { p: "packages/opencode/src/git", n: "Git service" },
+        { p: "packages/opencode/src/snapshot/index.ts", n: "Repo snapshots (for revert)" },
+        { p: "packages/opencode/src/worktree", n: "Worktree management" },
+      ],
+    },
+
+    {
+      id: "plugin", cat: "plugin", tag: "plugin",
+      title: "Plugin host",
+      summary: "Loads npm or local plugins, exposes hooks (auth, tools, lifecycle) into the runtime.",
+      files: [
+        { p: "packages/opencode/src/plugin/index.ts", n: "Plugin.Service entry" },
+        { p: "packages/opencode/src/plugin/loader.ts", n: "Resolve / install / import plan" },
+        { p: "packages/opencode/src/plugin/shared.ts", n: "PluginKind / source helpers" },
+        { p: "packages/opencode/src/plugin/install.ts", n: "npm install for plugins" },
+        { p: "packages/opencode/src/plugin/meta.ts", n: "Package metadata" },
+        { p: "packages/opencode/src/plugin/github-copilot", n: "Bundled auth plugins" },
+      ],
+    },
+    {
+      id: "mcp", cat: "plugin", tag: "mcp",
+      title: "MCP integration",
+      summary: "Connects to Model Context Protocol servers (stdio/HTTP) and exposes their tools.",
+      files: [
+        { p: "packages/opencode/src/mcp/index.ts", n: "MCP service (~970 LOC)" },
+        { p: "packages/opencode/src/mcp/auth.ts", n: "MCP server auth flow" },
+        { p: "packages/opencode/src/mcp/oauth-provider.ts", n: "OAuth provider for MCP" },
+        { p: "packages/opencode/src/mcp/oauth-callback.ts", n: "Callback server" },
+        { p: "packages/opencode/src/config/mcp.ts", n: "MCP config schema" },
+      ],
+    },
+    {
+      id: "skill", cat: "plugin", tag: "skill",
+      title: "Skills",
+      summary: "User-authored skill packs (system prompts + assets) discoverable by the model.",
+      files: [
+        { p: "packages/opencode/src/skill", n: "Skill service" },
+        { p: "packages/opencode/src/config/skills.ts", n: "Skill config" },
+      ],
+    },
+
+    {
+      id: "bus", cat: "bus", tag: "bus",
+      title: "Event bus",
+      summary: "Effect PubSub. Eager subscriptions, typed events; every domain publishes through here.",
+      note: { text: "Subscriptions are acquired at yield*-time so callers don't miss publishes during stream start — see the inline comment in bus/index.ts." },
+      files: [
+        { p: "packages/opencode/src/bus/index.ts", n: "Bus.Service: publish, subscribe, callback" },
+        { p: "packages/opencode/src/bus/bus-event.ts", n: "BusEvent.define helper" },
+        { p: "packages/opencode/src/bus/global.ts", n: "GlobalBus (cross-instance)" },
+      ],
+    },
+    {
+      id: "sync", cat: "bus", tag: "sync",
+      title: "Sync",
+      summary: "Persists and replays bus events for share/replay and multi-client UIs.",
+      files: [
+        { p: "packages/opencode/src/sync/index.ts", n: "Sync service entry" },
+        { p: "packages/opencode/src/sync/event.sql.ts", n: "Event log table" },
+        { p: "packages/opencode/src/sync/schema.ts", n: "Sync schemas" },
+      ],
+    },
+
+    {
+      id: "cli", cat: "infra", tag: "cli",
+      title: "CLI",
+      summary: "Entry point binary. Boots Effect runtime, parses flags, dispatches to TUI or commands.",
+      files: [
+        { p: "packages/opencode/src/index.ts", n: "Process entry" },
+        { p: "packages/opencode/src/cli/bootstrap.ts", n: "Runtime bootstrap" },
+        { p: "packages/opencode/src/cli/cmd", n: "Subcommands" },
+        { p: "packages/opencode/src/cli/ui.ts", n: "Terminal UI helpers" },
+      ],
+    },
+    {
+      id: "server", cat: "infra", tag: "server",
+      title: "HTTP server",
+      summary: "Local HTTP/WebSocket server for desktop, web, and remote clients.",
+      files: [
+        { p: "packages/opencode/src/server/server.ts", n: "Server entry" },
+        { p: "packages/opencode/src/server/auth.ts", n: "Server auth" },
+        { p: "packages/opencode/src/server/event.ts", n: "Bus → SSE/WS bridge" },
+        { p: "packages/opencode/src/server/routes", n: "Route handlers" },
+        { p: "packages/opencode/src/server/projectors.ts", n: "Read-model projections" },
+      ],
+    },
+    {
+      id: "storage", cat: "infra", tag: "storage",
+      title: "Storage",
+      summary: "SQLite via Drizzle. Stores sessions, parts, permissions, sync events, projects.",
+      files: [
+        { p: "packages/opencode/src/storage/storage.ts", n: "Storage.Service" },
+        { p: "packages/opencode/src/storage/db.ts", n: "DB layer (platform-agnostic)" },
+        { p: "packages/opencode/src/storage/db.bun.ts", n: "Bun driver" },
+        { p: "packages/opencode/src/storage/db.node.ts", n: "Node driver" },
+        { p: "packages/opencode/src/storage/schema.sql.ts", n: "Drizzle schema" },
+        { p: "packages/opencode/src/storage/json-migration.ts", n: "Legacy JSON → SQL migration" },
+      ],
+    },
+    {
+      id: "lsp", cat: "infra", tag: "lsp",
+      title: "LSP integration",
+      summary: "Spawns language servers to power the lsp tool: diagnostics, definitions, hovers.",
+      files: [
+        { p: "packages/opencode/src/lsp/lsp.ts", n: "LSP.Service" },
+        { p: "packages/opencode/src/lsp/client.ts", n: "JSON-RPC client" },
+        { p: "packages/opencode/src/lsp/launch.ts", n: "Process launch" },
+        { p: "packages/opencode/src/lsp/diagnostic.ts", n: "Diagnostic mapping" },
+        { p: "packages/opencode/src/lsp/language.ts", n: "Language detection" },
+        { p: "packages/opencode/src/lsp/server.ts", n: "Server config" },
+      ],
+    },
+    {
+      id: "config", cat: "infra", tag: "config",
+      title: "Config",
+      summary: "Layered config: defaults, project file, env, CLI flags. Everything is parsed via Schema.",
+      files: [
+        { p: "packages/opencode/src/config/config.ts", n: "Config.Service" },
+        { p: "packages/opencode/src/config/agent.ts", n: "Agent config" },
+        { p: "packages/opencode/src/config/permission.ts", n: "Permission rules" },
+        { p: "packages/opencode/src/config/provider.ts", n: "Provider config" },
+        { p: "packages/opencode/src/config/plugin.ts", n: "Plugin spec" },
+        { p: "packages/opencode/src/config/parse.ts", n: "Parsing + merge" },
+      ],
+    },
+  ];
+
+  document.getElementById("repoRoot").textContent = REPO;
+
+  function fileUrl(rel) {
+    return "file://" + REPO + "/" + rel;
+  }
+
+  function el(tag, opts) {
+    const e = document.createElement(tag);
+    if (opts) {
+      if (opts.className) e.className = opts.className;
+      if (opts.text != null) e.textContent = opts.text;
+      if (opts.attrs) {
+        for (const k of Object.keys(opts.attrs)) {
+          e.setAttribute(k, opts.attrs[k]);
+        }
+      }
+      if (opts.children) {
+        for (const child of opts.children) {
+          if (child != null) e.appendChild(child);
+        }
+      }
+    }
+    return e;
+  }
+
+  const grid = document.getElementById("grid");
+
+  for (const m of MODULES) {
+    const tag = el("span", { className: "tag", text: m.tag });
+    const title = el("h3", { text: m.title });
+    const chev = el("span", { className: "chev", text: "▸" });
+    const head = el("div", { className: "head", children: [tag, title, chev] });
+
+    const summary = el("p", { className: "summary", text: m.summary });
+
+    const bodyKids = [];
+    if (m.note) {
+      bodyKids.push(el("p", { className: "note", text: m.note.text }));
+    }
+    const fileItems = m.files.map(function (f) {
+      const a = el("a", { text: f.p, attrs: { href: fileUrl(f.p) } });
+      const kids = [a];
+      if (f.n) {
+        kids.push(el("span", { className: "note", text: " — " + f.n }));
+      }
+      return el("li", { children: kids });
+    });
+    bodyKids.push(el("ul", { className: "files", children: fileItems }));
+    const body = el("div", { className: "body", children: bodyKids });
+
+    const card = el("div", {
+      className: "card",
+      attrs: { "data-cat": m.cat },
+      children: [head, summary, body],
+    });
+    head.addEventListener("click", function () { card.classList.toggle("expanded"); });
+    grid.appendChild(card);
+  }
+</script>
+
+</body>
+</html>
