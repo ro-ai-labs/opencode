@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>opencode — Architecture Map</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #161b22;
+    --panel-2: #1c2128;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --link: #79c0ff;
+    --link-hover: #a5d6ff;
+    --code-bg: #1f242c;
+    --scope-a: #1f6feb;   /* blue   - CLI runtime */
+    --scope-b: #8957e5;   /* purple - core/domain */
+    --scope-c: #1f9eb0;   /* teal   - UI */
+    --scope-d: #d29922;   /* amber  - cloud */
+    --scope-e: #2da44e;   /* green  - tooling */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+    color: var(--text);
+    background: var(--bg);
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  header.repo {
+    background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  header.repo h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.02em; }
+  header.repo p.tagline { margin: 0 0 18px; color: var(--muted); font-size: 15px; }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px 24px;
+    font-size: 13px;
+  }
+  .meta-grid div { color: var(--muted); }
+  .meta-grid strong { color: var(--text); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+
+  nav.toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 36px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  nav.toc strong { font-size: 12px; text-transform: uppercase; color: var(--muted); margin-right: 8px; align-self: center; letter-spacing: 0.05em; }
+  nav.toc a {
+    color: var(--text);
+    text-decoration: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+  }
+  nav.toc a:hover { border-color: var(--link); color: var(--link); }
+
+  section.scope {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 32px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+  section.scope > header {
+    padding: 18px 24px;
+    border-left: 6px solid;
+    background: var(--panel-2);
+  }
+  section.scope > header h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.01em; }
+  section.scope > header p.overview { margin: 0; color: var(--muted); font-size: 14px; max-width: 100ch; }
+
+  section#scope-a > header { border-left-color: var(--scope-a); }
+  section#scope-b > header { border-left-color: var(--scope-b); }
+  section#scope-c > header { border-left-color: var(--scope-c); }
+  section#scope-d > header { border-left-color: var(--scope-d); }
+  section#scope-e > header { border-left-color: var(--scope-e); }
+
+  section#scope-a .pill { background: rgba(31,111,235,0.15); color: #79c0ff; border-color: #1f6feb; }
+  section#scope-b .pill { background: rgba(137,87,229,0.15); color: #d2a8ff; border-color: #8957e5; }
+  section#scope-c .pill { background: rgba(31,158,176,0.15); color: #7ce7e1; border-color: #1f9eb0; }
+  section#scope-d .pill { background: rgba(210,153,34,0.15); color: #f0c674; border-color: #d29922; }
+  section#scope-e .pill { background: rgba(45,164,78,0.15); color: #7ee787; border-color: #2da44e; }
+
+  .scope-body { padding: 20px 24px 24px; }
+
+  table.modules {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    margin-bottom: 18px;
+  }
+  table.modules thead th {
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  table.modules tbody td {
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.modules tbody tr:last-child td { border-bottom: none; }
+  table.modules tbody tr:hover { background: var(--panel-2); }
+  table.modules .col-module { width: 18%; }
+  table.modules .col-purpose { width: 28%; }
+  table.modules .col-files { width: 30%; }
+  table.modules .col-patterns { width: 24%; }
+  table.modules .mod-name { font-weight: 600; font-size: 14px; color: var(--text); }
+
+  ul.files {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12.5px;
+  }
+  ul.files li { margin-bottom: 3px; }
+  ul.files a {
+    color: var(--link);
+    text-decoration: none;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    word-break: break-all;
+  }
+  ul.files a:hover { color: var(--link-hover); text-decoration: underline; }
+  ul.files .line { color: var(--muted); }
+
+  .patterns { font-size: 12.5px; color: #c9d1d9; }
+  .patterns code, .open-q code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 11.5px;
+  }
+
+  h3.section-h {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin: 24px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  ul.cross, ul.open-q, ul.uncharted {
+    margin: 0;
+    padding-left: 22px;
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+  ul.cross li, ul.open-q li, ul.uncharted li { margin-bottom: 8px; }
+  ul.cross b { color: var(--text); }
+  ul.open-q li { color: #c9d1d9; }
+
+  .pattern-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 28px;
+    margin-bottom: 32px;
+  }
+  .pattern-block h2 { margin: 0 0 6px; font-size: 20px; }
+  .pattern-block p.subtitle { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+
+  .scope-tags { display: inline-flex; flex-wrap: wrap; gap: 5px; margin-left: 6px; vertical-align: middle; }
+  .pill {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    border: 1px solid;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill-a { background: rgba(31,111,235,0.15); color: #79c0ff; border-color: #1f6feb; }
+  .pill-b { background: rgba(137,87,229,0.15); color: #d2a8ff; border-color: #8957e5; }
+  .pill-c { background: rgba(31,158,176,0.15); color: #7ce7e1; border-color: #1f9eb0; }
+  .pill-d { background: rgba(210,153,34,0.15); color: #f0c674; border-color: #d29922; }
+  .pill-e { background: rgba(45,164,78,0.15); color: #7ee787; border-color: #2da44e; }
+
+  footer.repo {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-top: 36px;
+    color: #c9d1d9;
+  }
+  footer.repo h2 { margin: 0 0 14px; font-size: 18px; }
+  footer.repo h3 { margin: 18px 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  footer.repo .caveat {
+    margin-top: 22px;
+    padding: 14px 18px;
+    border-left: 3px solid var(--scope-d);
+    background: rgba(210,153,34,0.06);
+    font-size: 13px;
+    color: #c9d1d9;
+    border-radius: 0 6px 6px 0;
+  }
+  footer.repo .caveat code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  details.scope-detail summary {
+    cursor: pointer;
+    padding: 10px 0;
+    color: var(--muted);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  details.scope-detail[open] summary { color: var(--text); }
+
+  a.file { color: var(--link); text-decoration: none; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  a.file:hover { color: var(--link-hover); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="repo">
+  <h1>opencode &mdash; Architecture Map</h1>
+  <p class="tagline">The open-source AI coding agent &mdash; a Bun/TypeScript monorepo of a local CLI/desktop client, a SolidJS UI, a hosted cloud console with billing &amp; analytics, and the SDKs/extensions/tooling that tie them together.</p>
+  <div class="meta-grid">
+    <div><strong>Repo</strong>github.com/ro-ai-labs/opencode</div>
+    <div><strong>Primary languages</strong>TypeScript (Bun), SolidJS, Astro, Rust (containers), Nix</div>
+    <div><strong>License</strong>MIT</div>
+    <div><strong>Package manager</strong>bun@1.3.14 / turborepo</div>
+    <div><strong>Workspace packages</strong>24 under <code>packages/</code></div>
+    <div><strong>Generated</strong>2026-05-27 20:56 UTC</div>
+  </div>
+</header>
+
+<nav class="toc">
+  <strong>Scopes</strong>
+  <a href="#scope-a">A &middot; CLI + session engine</a>
+  <a href="#scope-b">B &middot; Core domain + LLM</a>
+  <a href="#scope-c">C &middot; Desktop + Web UI</a>
+  <a href="#scope-d">D &middot; Cloud console + infra</a>
+  <a href="#scope-e">E &middot; SDKs, extensions, tooling</a>
+  <a href="#cross">Cross-cutting patterns</a>
+  <a href="#uncharted">Uncharted &amp; open questions</a>
+</nav>
+
+<!-- ============================ SCOPE A ============================ -->
+<section class="scope" id="scope-a">
+  <header>
+    <h2>A &middot; CLI + session engine</h2>
+    <p class="overview">The local agent runtime that orchestrates OpenCode sessions on a user's machine. Yargs-based CLI, the interactive TUI session loop, the session processor that turns LLM streams into typed events, the tool registry, MCP clients, plugin host, and the Effect-based service infrastructure (instance state, event bus, projectors) &mdash; backed by a Drizzle/SQLite session database.</p>
+  </header>
+  <div class="scope-body">
+    <table class="modules">
+      <thead><tr><th class="col-module">Module</th><th class="col-purpose">Purpose</th><th class="col-files">Key files</th><th class="col-patterns">Notable patterns</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mod-name">CLI entry &amp; commands</span></td>
+          <td>Yargs-based command dispatch and option parsing for every <code>opencode</code> subcommand.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/index.ts">packages/opencode/src/index.ts</a> <span class="line">:1</span></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli">packages/opencode/src/cli/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli/cmd">packages/opencode/src/cli/cmd/</a></li>
+          </ul></td>
+          <td class="patterns">Command-pattern handlers (<code>RunCommand</code>, <code>GenerateCommand</code>); middleware for logging and DB migration.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Run command + runtime</span></td>
+          <td>Orchestrates the three execution modes: non-interactive (prompt → stdout), interactive local (TUI + in-process server), and interactive attach (TUI + remote server).</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli/cmd/run.ts">packages/opencode/src/cli/cmd/run.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli/cmd/run/runtime.ts">packages/opencode/src/cli/cmd/run/runtime.ts</a></li>
+          </ul></td>
+          <td class="patterns">Lazy imports for runtime; split-footer TUI (renderer + keymap); prompt queue driven by UI events.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Session core</span></td>
+          <td>Stores and retrieves session state (title, model, tokens, cost), message history, and summaries; Drizzle ORM over SQLite.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/session.ts">packages/opencode/src/session/session.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/session.sql.ts">packages/opencode/src/session/session.sql.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>fromRow()</code> deserializer; parent/child session trees via <code>parent_id</code>; per-side token counters denormalised onto the session row.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Session processor + LLM bridge</span></td>
+          <td>Consumes the LLM stream, accumulates message parts (text / tool calls / reasoning), tracks tool state, and decides compact / continue / stop.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/processor.ts">packages/opencode/src/session/processor.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/llm.ts">packages/opencode/src/session/llm.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/compaction.ts">packages/opencode/src/session/compaction.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>Handle</code> interface (<code>message</code> + <code>updateToolCall</code> + <code>process</code>); deferred tool-call tracking; usage aggregation across input/output/reasoning/cache tokens.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Tool registry + builtin tools</span></td>
+          <td>Aggregates builtin tools (shell, read, write, edit, glob, grep, lsp, repo_clone, websearch, …) and plugin-supplied tools, filtered by model capability and permission.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/registry.ts">packages/opencode/src/tool/registry.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool">packages/opencode/src/tool/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/shell.ts">packages/opencode/src/tool/shell.ts</a></li>
+          </ul></td>
+          <td class="patterns">Tool = schema + handler pair; Effect-based DI for <code>Config</code>, <code>Plugin</code>, <code>Provider</code>; sibling <code>.txt</code> files hold prompt fragments per tool.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">MCP clients</span></td>
+          <td>Loads and supervises Model Context Protocol servers (stdio / SSE / HTTP); exposes their tools, resources, and prompts as Effect services.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp">packages/opencode/src/mcp/</a></li>
+          </ul></td>
+          <td class="patterns">Transport abstraction; OAuth callback integration; resource caching.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Plugin host</span></td>
+          <td>Loads plugins (npm, workspace dirs, builtin auth plugins) and dispatches lifecycle / tool / auth hooks.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin">packages/opencode/src/plugin/</a></li>
+          </ul></td>
+          <td class="patterns">Hook trigger pattern; per-workspace <code>InstanceState</code> for plugin state; <code>EffectBridge</code> to cross the callback ↔ Effect boundary.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Provider + auth</span></td>
+          <td>Abstracts LLM providers via the <code>ai</code> SDK; OAuth/API-key credential storage; per-provider transforms.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/provider/provider.ts">packages/opencode/src/provider/provider.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/auth/index.ts">packages/opencode/src/auth/index.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/provider">packages/opencode/src/provider/</a></li>
+          </ul></td>
+          <td class="patterns">Schema-tagged auth variants (<code>Oauth</code>, <code>Api</code>, <code>WellKnown</code>); model metadata caching; workspace-scoped provider config.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Permission engine</span></td>
+          <td>Tracks user-granted tool / command permissions; evaluates allow / deny / ask-once rules per pattern; persists to the session DB.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/index.ts">packages/opencode/src/permission/index.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission">packages/opencode/src/permission/</a></li>
+          </ul></td>
+          <td class="patterns">Rule evaluation with wildcard pattern match; permission-request queue surfaced through the TUI.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">HTTP server + routes</span></td>
+          <td>Hono-style server that exposes the project / session / message / file API and mDNS discovery for remote desktops.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/server/server.ts">packages/opencode/src/server/server.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/server/routes">packages/opencode/src/server/routes/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/server/mdns.ts">packages/opencode/src/server/mdns.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/server/projectors.ts">packages/opencode/src/server/projectors.ts</a></li>
+          </ul></td>
+          <td class="patterns">Projector pattern wires session events to over-the-wire deltas; same server runs in-process or as a sidecar for the desktop.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Event bus</span></td>
+          <td>Typed PubSub for cross-module signalling (session updates, tool completion, MCP server changes, instance disposal).</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/bus/index.ts">packages/opencode/src/bus/index.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>BusEvent</code> schema for each topic; per-instance and global buses; Stream-based subscribers.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Instance bootstrap + Effect runtime</span></td>
+          <td>Per-workspace scoped state cache (LSP, file watcher, format cache, snapshots, VCS); deterministic lazy init for every service.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/effect/instance-state.ts">packages/opencode/src/effect/instance-state.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/project/bootstrap.ts">packages/opencode/src/project/bootstrap.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/effect">packages/opencode/src/effect/</a></li>
+          </ul></td>
+          <td class="patterns"><code>ScopedCache</code> keyed by directory; <code>Effect.forkScoped</code> for background tasks; flat-export Effect modules per repo <code>AGENTS.md</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Storage &amp; migrations</span></td>
+          <td>Drizzle ORM (bun-sqlite) for the session DB; one-shot JSON → SQLite migration on first run.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/storage/db.ts">packages/opencode/src/storage/db.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/storage">packages/opencode/src/storage/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/drizzle.config.ts">packages/opencode/drizzle.config.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/data-migration.ts">packages/opencode/src/data-migration.ts</a></li>
+          </ul></td>
+          <td class="patterns">Channel-specific DB paths (prod vs. dev); migration progress UI; Drizzle Kit for schema generation.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">LSP + IDE integration</span></td>
+          <td>Language Server Protocol clients for workspace symbols, diagnostics, hover; per-language per-project servers.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/lsp/lsp.ts">packages/opencode/src/lsp/lsp.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/lsp">packages/opencode/src/lsp/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/ide">packages/opencode/src/ide/</a></li>
+          </ul></td>
+          <td class="patterns">Server lifecycle owned by <code>InstanceState</code>; diagnostic aggregation; file-based launch config per language.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Commands &amp; skills framework</span></td>
+          <td>Registers user-defined commands and skill <code>SKILL.md</code> files with template expansion; resolves from MCP, config, and <code>.opencode</code> dirs.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/command/index.ts">packages/opencode/src/command/index.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a></li>
+          </ul></td>
+          <td class="patterns">Template lazy promises; hint extraction for UI; discovery from <code>.claude</code> / <code>.opencode</code> dirs.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Share, snapshot, worktree, v2 bridges</span></td>
+          <td>Supporting subsystems: session sharing, working-tree snapshots, multi-worktree management, and the legacy → v2 schema bridge.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/share">packages/opencode/src/share/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/snapshot">packages/opencode/src/snapshot/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/worktree">packages/opencode/src/worktree/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/v2">packages/opencode/src/v2/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/event-v2-bridge.ts">packages/opencode/src/event-v2-bridge.ts</a></li>
+          </ul></td>
+          <td class="patterns">v2 bridge keeps the in-progress schema migration backwards-compatible.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-h">Scope-local patterns</h3>
+    <ul class="cross">
+      <li><b>Service + Layer everywhere.</b> Every subsystem extends <code>Context.Service</code> and provides an Effect layer; cross-references in <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/project/bootstrap.ts">project/bootstrap.ts</a> stitch them together in deterministic order.</li>
+      <li><b>InstanceState + ScopedCache.</b> Per-workspace state (LSP servers, file watchers, snapshots) is auto-cleaned on workspace disposal &mdash; prevents leaks across multi-project servers (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/effect/instance-state.ts">effect/instance-state.ts</a>).</li>
+      <li><b>Schema-first errors and events.</b> <code>Schema.TaggedErrorClass</code> and <code>Schema.Struct</code> give every public payload a runtime validator (see <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/index.ts">permission/index.ts</a>, <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli/error.ts">cli/error.ts</a>).</li>
+      <li><b>Lazy + forked startup.</b> Heavy init (LSP spawn, reference index, file watch) is forked into background fibres so the first prompt is unblocked.</li>
+    </ul>
+
+    <h3 class="section-h">Open questions</h3>
+    <ul class="open-q">
+      <li>How is subagent execution modelled &mdash; how do nested sessions inherit permissions and pass context back?</li>
+      <li>Where does the <em>Workspace</em> entity live relative to <em>Project</em> and <em>Session</em>? <code>packages/opencode/src/control-plane/</code> hints at a remote concept that wasn't sampled.</li>
+      <li>How is plugin-hook ordering and error handling defined &mdash; can hooks veto a tool call?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ SCOPE B ============================ -->
+<section class="scope" id="scope-b">
+  <header>
+    <h2>B &middot; Core domain + LLM</h2>
+    <p class="overview">The shared domain types and the LLM abstraction layer that every other scope depends on. <code>packages/core</code> defines Agent, Model, Session, Permission, Plugin and the Effect-services for them. <code>packages/llm</code> turns a provider-neutral <code>LLMRequest</code> into the wire format of six protocols (OpenAI Chat &amp; Responses, Anthropic Messages, Gemini, Bedrock Converse) and runs the tool loop.</p>
+  </header>
+  <div class="scope-body">
+    <table class="modules">
+      <thead><tr><th class="col-module">Module</th><th class="col-purpose">Purpose</th><th class="col-files">Key files</th><th class="col-patterns">Notable patterns</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mod-name">Agent domain</span></td>
+          <td>Defines agents (subagent / primary / hidden modes) with permissions, model refs, system prompts; service for CRUD + defaulting.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/agent.ts">packages/core/src/agent.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>Schema.Class</code> info + <code>Context.Service</code> interface + <code>Layer.effect</code> implementation; branded ID types.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Model catalog</span></td>
+          <td>Model registry with families, variants, capabilities (tools, MIME patterns), and cost tiers; links to provider routing.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/model.ts">packages/core/src/model.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/models-dev.ts">packages/core/src/models-dev.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/catalog.ts">packages/core/src/catalog.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>ProviderV2.ID</code> + <code>VariantID</code> for cost / context variants; capabilities expressed as schema.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Session domain</span></td>
+          <td>Type-safe session IDs and the message union (User, Assistant, Tool, Shell, Compaction, Synthetic).</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/session.ts">packages/core/src/session.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/session-message.ts">packages/core/src/session-message.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/session-prompt.ts">packages/core/src/session-prompt.ts</a></li>
+          </ul></td>
+          <td class="patterns">Descending ID generator for temporal ordering; structured tool state (Pending / Running / Completed).</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Session events</span></td>
+          <td>Event stream for agent / model switches, tool calls, shell execution, file attachments.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/session-event.ts">packages/core/src/session-event.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/event.ts">packages/core/src/event.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>EventV2.define()</code> creates Schema + Definition with type / version / aggregate, enabling event sourcing &amp; polymorphic deserialisation.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Session message updater</span></td>
+          <td>State machine that accumulates async messages (assistant, shell, tools, compaction) into the active message.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/session-message-updater.ts">packages/core/src/session-message-updater.ts</a></li>
+          </ul></td>
+          <td class="patterns">Storage-backend adapter + immer drafts for immutable updates; active-message tracking via <code>findLastIndex</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Permission rules</span></td>
+          <td>Allow / deny / ask actions with wildcard pattern matching across rulesets, last-match-wins.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/permission.ts">packages/core/src/permission.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>Ruleset.evaluate()</code> across multiple rulesets; <code>EDIT_TOOLS</code> normalisation collapses synonyms.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Plugin hooks API</span></td>
+          <td>Typed hook spec (<code>catalog.transform</code>, <code>aisdk.*</code>, <code>agent.*</code>) with Effect-typed input / output and PubSub for hook addition.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/plugin.ts">packages/core/src/plugin.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/plugin">packages/core/src/plugin/</a></li>
+          </ul></td>
+          <td class="patterns">Draft output allows mutation; Scope management for cleanup.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Provider abstraction</span></td>
+          <td>Provider IDs, Endpoint union (OpenAI / Anthropic / AISDK), and Options schema for auth + deployment.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/provider.ts">packages/core/src/provider.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/github-copilot">packages/core/src/github-copilot/</a></li>
+          </ul></td>
+          <td class="patterns">Well-known provider IDs; Endpoint polymorphism per protocol family.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Project context</span></td>
+          <td>Project ID, VCS tracking, resolution with a prev-ID bridge for migration.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/project.ts">packages/core/src/project.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/v2-schema.ts">packages/core/src/v2-schema.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>ID.global</code> singleton; VCS as <code>{ type: "git", path: AbsolutePath }</code>; <code>resolve()</code> + <code>commit()</code> dual-persistence bridge.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">LLM request / response shape</span></td>
+          <td>Provider-neutral <code>LLMRequest</code> (system, messages, tools, generation, http, providerOptions) and <code>LLMResponse</code> / <code>LLMEvent</code> types.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/llm.ts">packages/llm/src/llm.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/schema">packages/llm/src/schema/</a></li>
+          </ul></td>
+          <td class="patterns">System / user / assistant / tool part unions; <code>RequestInput</code> normalises string &amp; <code>ContentPart</code> into canonical class.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">LLM tool runtime</span></td>
+          <td>Step-by-step model round-trips with auto tool-call execution, concurrency control, stop conditions.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/tool-runtime.ts">packages/llm/src/tool-runtime.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/tool.ts">packages/llm/src/tool.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>StopCondition</code> callback for early exit; <code>toolExecution: "auto" | "none"</code>; Stream-based to allow cancellation.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Protocol adapters</span></td>
+          <td>Six protocols translate <code>LLMRequest</code> ↔ provider wire format (OpenAI Chat &amp; Responses, Anthropic Messages, Gemini, Bedrock Converse).</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/protocols">packages/llm/src/protocols/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/route">packages/llm/src/route/</a></li>
+          </ul></td>
+          <td class="patterns"><code>Protocol&lt;Body, Frame, Event, State&gt;</code> generic; body schema + <code>from()</code> builder; clean Protocol ↔ Route split.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Route + client</span></td>
+          <td>Wraps a protocol with endpoint + auth + transport + defaults; <code>LLMClient.generate / stream</code> is the entry point.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/route/client.ts">packages/llm/src/route/client.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/route/protocol.ts">packages/llm/src/route/protocol.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/providers">packages/llm/src/providers/</a></li>
+          </ul></td>
+          <td class="patterns">Layered <code>mergeGenerationOptions</code> / <code>mergeProviderOptions</code>; <code>HttpOptions</code> for timeouts / retries.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Cache policy</span></td>
+          <td>Prompt caching on by default; <code>auto</code> mode places breakpoints at last tool, last system part, latest user message.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/llm/src/cache-policy.ts">packages/llm/src/cache-policy.ts</a></li>
+          </ul></td>
+          <td class="patterns">Protocol-specific behaviour (some respect inline hints, others use implicit caching); ephemeral cache TTL.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-h">Scope-local patterns</h3>
+    <ul class="cross">
+      <li><b>Branded schema IDs.</b> Every domain concept is a <code>Schema.String.pipe(Schema.brand(...))</code> with optional static constructors.</li>
+      <li><b>Schema.Class for domain objects.</b> Info records are simultaneously runtime values and codecs (<code>Schema.Class&lt;Info&gt;</code>).</li>
+      <li><b>Protocol ↔ Route separation.</b> Wire-format mapping (Protocol) is decoupled from deployment / auth (Route), avoiding duplication across providers.</li>
+      <li><b>Stream-based LLM I/O.</b> <code>LLMClient.stream()</code> and <code>tool-runtime.stream()</code> return Effect <code>Stream</code>s for cancellation, backpressure, composability.</li>
+    </ul>
+
+    <h3 class="section-h">Open questions</h3>
+    <ul class="open-q">
+      <li>Persistence: <code>core</code> defines interfaces but not storage bindings &mdash; bindings live elsewhere (Scope A SQLite, Scope D Drizzle/PlanetScale).</li>
+      <li>Are custom protocols plug-in extensible, or is the set of six fixed?</li>
+      <li>How are plugins discovered &mdash; from disk, npm, or dynamically at runtime?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ SCOPE C ============================ -->
+<section class="scope" id="scope-c">
+  <header>
+    <h2>C &middot; Desktop + Web UI</h2>
+    <p class="overview">All user-facing graphical surfaces: an Electron host that spawns a local <code>opencode</code> server as a sidecar, a SolidJS single-page app that talks to that server through the OpenAPI-generated SDK, an Astro marketing &amp; docs site, the shared UI component library, and Storybook for component development.</p>
+  </header>
+  <div class="scope-body">
+    <table class="modules">
+      <thead><tr><th class="col-module">Module</th><th class="col-purpose">Purpose</th><th class="col-files">Key files</th><th class="col-patterns">Notable patterns</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mod-name">Electron main</span></td>
+          <td>Entry point, sidecar server lifecycle, IPC handler registration, auto-updater, native dialogs.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/main/index.ts">packages/desktop/src/main/index.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/main/ipc.ts">packages/desktop/src/main/ipc.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/main/server.ts">packages/desktop/src/main/server.ts</a></li>
+          </ul></td>
+          <td class="patterns">Server spawned via <code>utilityProcess</code>; config in <code>electron-store</code>; deep links + SQLite migration steps emitted to renderer.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Electron preload</span></td>
+          <td>Security bridge exposing a typed API to the renderer via <code>contextBridge</code>.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/preload/index.ts">packages/desktop/src/preload/index.ts</a></li>
+          </ul></td>
+          <td class="patterns">Typed <code>ElectronAPI</code> object; all IPC channels declared here; init-step / sqlite-migration listeners.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Electron renderer</span></td>
+          <td>HTML / CSS entry point that loads the SolidJS app; manages zoom, updater UI, CLI installer.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/renderer/index.tsx">packages/desktop/src/renderer/index.tsx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/renderer/loading.tsx">packages/desktop/src/renderer/loading.tsx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/renderer/updater.ts">packages/desktop/src/renderer/updater.ts</a></li>
+          </ul></td>
+          <td class="patterns">Calls <code>window.api</code> from preload; splash screen during init; delegates app logic to SolidJS.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">App shell &amp; entry</span></td>
+          <td>SolidJS app with provider stack (contexts, routing, query client, Sentry).</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/app.tsx">packages/app/src/app.tsx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/entry.tsx">packages/app/src/entry.tsx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/index.ts">packages/app/src/index.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>AppBaseProviders</code> wraps I18n / Theme / Dialog / File / Marked; router with <code>Layout</code> and <code>DirectoryLayout</code> pages; error boundary.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Server connection context</span></td>
+          <td>Manages HTTP server connections (localhost, sidecar, remote, SSH, WSL); persists list; health-polls.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/context/server.tsx">packages/app/src/context/server.tsx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/context/server-sdk.tsx">packages/app/src/context/server-sdk.tsx</a></li>
+          </ul></td>
+          <td class="patterns"><code>ServerConnection</code> discriminated union; 10s health poll; event coalescing with frame-based flush.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Pages &amp; routing</span></td>
+          <td>Router pages: <code>Layout</code> (main IDE), <code>DirectoryLayout</code> (workspace nav), Home, Session, Error.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/pages">packages/app/src/pages/</a></li>
+          </ul></td>
+          <td class="patterns">Drag-drop provider (solid-dnd); prefetch optimisation; session data loaded via <code>@tanstack/solid-query</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">App-wide contexts</span></td>
+          <td>State trees: command, comments, file, models, terminal, settings, notification, permissions, prompt.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/context">packages/app/src/context/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/components">packages/app/src/components/</a></li>
+          </ul></td>
+          <td class="patterns">Most use <code>createSimpleContext</code> from the UI lib; terminal multiplexes per workspace; settings persisted via <code>localStorage</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">UI primitives</span></td>
+          <td>Reusable SolidJS components built on Kobalte, Tailwind, Shiki.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/ui/src">packages/ui/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/ui/vite.config.ts">packages/ui/vite.config.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/ui/package.json">packages/ui/package.json</a></li>
+          </ul></td>
+          <td class="patterns">Co-located stories per component; <code>oklch</code> colour-math theming; Pierre diff component for inline diffs.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Storybook</span></td>
+          <td>Vite-powered component explorer; mocks router and app contexts.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/storybook">packages/storybook/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/storybook/package.json">packages/storybook/package.json</a></li>
+          </ul></td>
+          <td class="patterns"><code>storybook-solidjs-vite</code>; theme-tool for custom palettes.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Marketing / docs site</span></td>
+          <td>Astro + Starlight documentation; multi-language landing pages; deployed to Cloudflare.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/web/astro.config.mjs">packages/web/astro.config.mjs</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/web/src">packages/web/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/web/package.json">packages/web/package.json</a></li>
+          </ul></td>
+          <td class="patterns">Solid components embedded inside Astro; rehype + shiki for code rendering.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-h">Scope-local patterns</h3>
+    <ul class="cross">
+      <li><b>IPC bridge.</b> Renderer ↔ main via typed <code>window.api</code> exposed in preload (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/desktop/src/preload/index.ts">preload/index.ts</a>).</li>
+      <li><b>Connection abstraction.</b> A single <code>ServerConnection</code> union handles http / sidecar / ssh / wsl, with <code>createSdkForServer()</code> minting an SDK per backend.</li>
+      <li><b>Event coalescing.</b> The server SDK batches sync events with frame-based flush (~16ms) and stream yield (~8ms) to avoid render churn.</li>
+      <li><b>Theme system.</b> <code>oklch</code> colour math generates neutral / alpha scales; <code>applyTheme</code> injects CSS variables at runtime.</li>
+      <li><b>Persisted state.</b> Electron via <code>electron-store</code>; app via <code>@solid-primitives/storage</code> wrapping <code>localStorage</code>.</li>
+    </ul>
+
+    <h3 class="section-h">Open questions</h3>
+    <ul class="open-q">
+      <li>How are multi-server connections (local sidecar vs. remote SSH) reconciled on switch &mdash; do subscriptions automatically reconnect?</li>
+      <li>What triggers session-prefetch cache eviction?</li>
+      <li>How does the Electron updater coordinate with sidecar SQLite migrations during app updates?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ SCOPE D ============================ -->
+<section class="scope" id="scope-d">
+  <header>
+    <h2>D &middot; Cloud console + infra</h2>
+    <p class="overview">The hosted side of opencode.ai: a multi-tenant dashboard, an LLM gateway (zen) that proxies user requests with rate limits and billing, a stats pipeline backed by S3 Tables / Iceberg + Athena, an enterprise file-sharing app, integrations (Slack), and the SST infrastructure-as-code that provisions everything across Cloudflare Workers + AWS.</p>
+  </header>
+  <div class="scope-body">
+    <table class="modules">
+      <thead><tr><th class="col-module">Module</th><th class="col-purpose">Purpose</th><th class="col-files">Key files</th><th class="col-patterns">Notable patterns</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mod-name">SST root config</span></td>
+          <td>IaC entry point declaring AWS / Cloudflare / Stripe / PlanetScale providers and stage logic.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/sst.config.ts">sst.config.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/stage.ts">infra/stage.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/secret.ts">infra/secret.ts</a></li>
+          </ul></td>
+          <td class="patterns">Multi-stage (prod / dev / personal); <code>$dev</code> + <code>$app.stage</code> conditionals; sequential import of 5 infra modules.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Infra: console</span></td>
+          <td>PlanetScale DB, Cloudflare auth Worker, Stripe integration, Redis, SES, the SolidStart console app.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/console.ts">infra/console.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/app.ts">infra/app.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>sst.Linkable</code> for secrets + resources; 30+ Stripe webhook events; <code>LogProcessor</code> tail worker.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Infra: stats / lake</span></td>
+          <td>S3 Tables Iceberg schema, Glue catalog, Athena workgroup, separate PlanetScale stats DB, <code>StatsSyncService</code> on ECS.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/lake.ts">infra/lake.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/stats.ts">infra/stats.ts</a></li>
+          </ul></td>
+          <td class="patterns">Inference event table with 55+ columns (geo, cost, tokens, errors); arm64 Fargate at 0.25 vCPU; stage-aware naming.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Infra: enterprise &amp; monitoring</span></td>
+          <td>Cloudflare Worker for the Teams subdomain with R2-backed shares; Honeycomb tracing pipeline.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/enterprise.ts">infra/enterprise.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/infra/monitoring.ts">infra/monitoring.ts</a></li>
+          </ul></td>
+          <td class="patterns">R2 storage adapter; separate worker app from console; Honeycomb webhook recipient per stage.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Console domain (Drizzle)</span></td>
+          <td>Account, workspace, billing, subscription, key, model, provider, referral &mdash; the relational core of the SaaS.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/account.ts">packages/console/core/src/account.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/workspace.ts">packages/console/core/src/workspace.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/billing.ts">packages/console/core/src/billing.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/subscription.ts">packages/console/core/src/subscription.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/key.ts">packages/console/core/src/key.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/model.ts">packages/console/core/src/model.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/provider.ts">packages/console/core/src/provider.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/referral.ts">packages/console/core/src/referral.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/schema">packages/console/core/src/schema/</a></li>
+          </ul></td>
+          <td class="patterns">Zod-validated DTOs; <code>Database.use(tx)</code> / <code>Database.transaction</code>; ULID identifiers; workspace-scoped tables with soft-delete columns.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Console actor / context</span></td>
+          <td>Request-bound <code>workspace / user / account</code> identity used by every domain method.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/actor.ts">packages/console/core/src/actor.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/context.ts">packages/console/core/src/context.ts</a></li>
+          </ul></td>
+          <td class="patterns"><code>Actor.assert()</code> / <code>Actor.assertAdmin()</code> guards at the boundary.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Console dashboard (SolidStart)</span></td>
+          <td>Public landing + auth + workspace dashboard; embeds zen gateway endpoints.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/app">packages/console/app/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/app/src">packages/console/app/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/app/package.json">packages/console/app/package.json</a></li>
+          </ul></td>
+          <td class="patterns">Multi-language router; workspace / zen / black / bench top-level routes.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Zen LLM gateway</span></td>
+          <td>OpenAI / Anthropic / Google-compatible proxy endpoints with auth, rate limits, billing.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/app/src">packages/console/app/src/</a></li>
+          </ul></td>
+          <td class="patterns">Provider router; Redis-backed rate limiter (<code>ModelTpsRateLimiter</code>, <code>keyRateLimiter</code>); per-key + per-model TPS counters.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Console functions</span></td>
+          <td>Cloudflare edge Workers: GitHub / Google OAuth handler, tail log processor, stat aggregation.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/function">packages/console/function/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/resource">packages/console/resource/</a></li>
+          </ul></td>
+          <td class="patterns">Tail worker filters <code>/zen/v1/*</code>; extracts <code>cf.*</code> geo + token + cost fields; pushes to Honeycomb &amp; lake.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Stats pipeline</span></td>
+          <td>HTTP ingest server + ECS stat-sync that reads S3 Tables inference events and aggregates them into the stats DB.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/stats/server">packages/stats/server/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/stats/core">packages/stats/core/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/stats/app">packages/stats/app/</a></li>
+          </ul></td>
+          <td class="patterns">Effect <code>HttpRouter</code> + Layer composition; Athena query builder; <code>LayerEffect</code> DI pattern.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Enterprise app</span></td>
+          <td>Multi-tenant file-sharing SolidStart app (Teams subdomain) backed by R2.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/enterprise/src">packages/enterprise/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/enterprise/package.json">packages/enterprise/package.json</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/enterprise/test">packages/enterprise/test/</a></li>
+          </ul></td>
+          <td class="patterns">Storage adapter abstraction; AWS4Fetch for R2; share routes separate from console.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Slack integration</span></td>
+          <td>Bot that turns Slack threads into OpenCode sessions and streams tool / completion events back.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/slack/src">packages/slack/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/slack/package.json">packages/slack/package.json</a></li>
+          </ul></td>
+          <td class="patterns">Slack Bolt app + <code>@opencode-ai/sdk</code>; <code>session.create</code> + <code>session.prompt</code> + <code>tool.completed</code> events.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Mail service</span></td>
+          <td>Transactional email templates (e.g. invites) rendered with React + UI lib styling.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/mail">packages/console/mail/</a></li>
+          </ul></td>
+          <td class="patterns">Templates depend on <code>packages/ui</code> for branded styling.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-h">Scope-local patterns</h3>
+    <ul class="cross">
+      <li><b>Cloudflare vs AWS split.</b> Edge (auth, gateway, console app) on Cloudflare Workers; data lake + ECS stats on AWS.</li>
+      <li><b>SST Linkable.</b> Every resource exports linkable properties (url, arn, secret, name) to be injected into workers / apps without boilerplate.</li>
+      <li><b>Dual PlanetScale DBs.</b> One for transactional console state, one for aggregated stats.</li>
+      <li><b>S3 Tables / Iceberg.</b> Inference events are appended to S3 Tables in Iceberg format and queried via Athena from the stats pipeline.</li>
+      <li><b>Actor at the boundary.</b> All domain methods assume a current <code>Actor</code> &mdash; enforced via assertions, not arguments.</li>
+    </ul>
+
+    <h3 class="section-h">Open questions</h3>
+    <ul class="open-q">
+      <li>Where exactly is zen rate-limiting enforced (gateway vs upstream app routes) and how is state split between Redis and <code>ModelTpsRateLimitTable</code>?</li>
+      <li>Is <code>StatsSyncService</code> doing incremental or batch reads off S3 Tables &mdash; and on what cadence?</li>
+      <li>Where do OAuth sessions live &mdash; in the auth Worker's KV namespace?</li>
+      <li>Are BYOK provider credentials encrypted with a per-workspace key, or only at the DB-engine level?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ SCOPE E ============================ -->
+<section class="scope" id="scope-e">
+  <header>
+    <h2>E &middot; SDKs, extensions, build tooling</h2>
+    <p class="overview">Everything that supports the rest of the codebase: the public JavaScript SDK (generated from <code>packages/sdk/openapi.json</code>), VS Code &amp; Zed extensions, the plugin SDK package, the Mintlify docs site, multi-platform container images, Bun-based release scripts, the GitHub Action, and internal libraries (HTTP recorder, Effect / Drizzle / SQLite adapter).</p>
+  </header>
+  <div class="scope-body">
+    <table class="modules">
+      <thead><tr><th class="col-module">Module</th><th class="col-purpose">Purpose</th><th class="col-files">Key files</th><th class="col-patterns">Notable patterns</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="mod-name">Public JS SDK</span></td>
+          <td>Type-safe client / server library for programmatic access to the opencode API.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/js/package.json">packages/sdk/js/package.json</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/js/src">packages/sdk/js/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/openapi.json">packages/sdk/openapi.json</a></li>
+          </ul></td>
+          <td class="patterns">OpenAPI codegen via <code>@hey-api/openapi-ts</code>; dual exports (client / server, v1 / v2).</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">SDK build pipeline</span></td>
+          <td>Generates the TypeScript client from the OpenAPI spec and publishes to npm.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/js/script">packages/sdk/js/script/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/js/example">packages/sdk/js/example/</a></li>
+          </ul></td>
+          <td class="patterns"><code>bun dev generate</code> + <code>@hey-api/openapi-ts</code> plugin pipeline; builds to <code>dist/</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">VS Code extension</span></td>
+          <td>Terminal integration that opens / focuses the opencode CLI with the current file context.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/sdks/vscode">sdks/vscode/</a></li>
+          </ul></td>
+          <td class="patterns">esbuild-packaged; talks to the local CLI server over HTTP; injects <code>@filepath#Lstart-end</code> on selection.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Zed extension</span></td>
+          <td>Advertises opencode as an agent server to the Zed editor across darwin / linux / windows.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/extensions/zed">packages/extensions/zed/</a></li>
+          </ul></td>
+          <td class="patterns">Table-driven platform targets; download URLs point at GitHub releases.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Plugin SDK</span></td>
+          <td>Type-safe wrapper used by third-party plugins to register tools, TUIs, and workspace adapters.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/src">packages/plugin/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/package.json">packages/plugin/package.json</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/script">packages/plugin/script/</a></li>
+          </ul></td>
+          <td class="patterns">Re-exports SDK + Effect + Zod; optional peer deps on <code>@opentui/*</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Docs site</span></td>
+          <td>MDX + Mintlify theme; OpenAPI auto-reference; integration guides for Claude Code / Cursor / Windsurf.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/docs/docs.json">packages/docs/docs.json</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/docs/index.mdx">packages/docs/index.mdx</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/docs/ai-tools">packages/docs/ai-tools/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/docs/essentials">packages/docs/essentials/</a></li>
+          </ul></td>
+          <td class="patterns">Mintlify schema; OpenAPI symlinked to <code>packages/sdk/openapi.json</code>.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Release orchestration</span></td>
+          <td>Bun-based monorepo versioning, changelog generation, tag / publish workflow.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/publish.ts">script/publish.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/version.ts">script/version.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/changelog.ts">script/changelog.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/beta.ts">script/beta.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/release">script/release/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/script">packages/script/</a></li>
+          </ul></td>
+          <td class="patterns">Direct executable TS (<code>#!/usr/bin/env bun</code>); single-pass version bump for every <code>package.json</code> + <code>extension.toml</code>; downstream CI triggers.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Container layers</span></td>
+          <td>Base Ubuntu → Bun+Node → Rust → Tauri-linux / publish images for CI / cross-platform releases.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/base">packages/containers/base/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/bun-node">packages/containers/bun-node/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/rust">packages/containers/rust/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/tauri-linux">packages/containers/tauri-linux/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/publish">packages/containers/publish/</a></li>
+          </ul></td>
+          <td class="patterns">Layered Dockerfiles published to <code>ghcr.io/anomalyco</code>; each tier inherits from the one below.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">HTTP recorder lib</span></td>
+          <td>Effect-based record / replay of HTTP + WebSocket traffic for deterministic tests.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/http-recorder/src">packages/http-recorder/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/http-recorder/README.md">packages/http-recorder/README.md</a></li>
+          </ul></td>
+          <td class="patterns"><code>Cassette.Service</code> with fileSystem / memory adapters; redaction + secret scanning.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Effect Drizzle SQLite lib</span></td>
+          <td>Typed Drizzle ORM adapter for the Effect runtime + Bun SQLite.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/effect-drizzle-sqlite/src">packages/effect-drizzle-sqlite/src/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/effect-drizzle-sqlite/AGENTS.md">packages/effect-drizzle-sqlite/AGENTS.md</a></li>
+          </ul></td>
+          <td class="patterns">Driver + migrator + sqlite-core adapters; kept generic so it can be upstreamed.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">Brand identity assets</span></td>
+          <td>Static SVG / PNG marks &amp; logos in light / dark variants.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/identity">packages/identity/</a></li>
+          </ul></td>
+          <td class="patterns">Mark + logo families at 96 / 192 / 512 px.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">GitHub Action</span></td>
+          <td>Composite action that installs the opencode binary and runs it inside CI workflows.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/github/action.yml">github/action.yml</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/github/index.ts">github/index.ts</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/github/package.json">github/package.json</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/github/script">github/script/</a></li>
+          </ul></td>
+          <td class="patterns">Caches the binary by version; OIDC token exchange with fallback to <code>GITHUB_TOKEN</code>; published to GitHub Marketplace.</td>
+        </tr>
+        <tr>
+          <td><span class="mod-name">CI workflows</span></td>
+          <td>27 GitHub Actions workflows covering containers, docs sync, releases, PR / issue management, deployment, Nix evaluation.</td>
+          <td><ul class="files">
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.github/workflows">.github/workflows/</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.github/workflows/publish.yml">.github/workflows/publish.yml</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.github/workflows/containers.yml">.github/workflows/containers.yml</a></li>
+            <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.github/workflows/deploy.yml">.github/workflows/deploy.yml</a></li>
+          </ul></td>
+          <td class="patterns">Path-filtered; runs on Blacksmith 4vCPU Ubuntu 24.04 runners; uses GH CLI inside steps.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="section-h">Scope-local patterns</h3>
+    <ul class="cross">
+      <li><b>OpenAPI-first.</b> <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/openapi.json">packages/sdk/openapi.json</a> is the contract &mdash; the JS SDK, the docs site, and downstream integrations are all generated from it.</li>
+      <li><b>Bun scripting.</b> Release / build scripts are executable <code>.ts</code> files run directly with Bun (no <code>npm run</code> shim).</li>
+      <li><b>Container hierarchy.</b> Base → Bun+Node → Rust → Tauri / Publish; each tier reused across CI pipelines.</li>
+      <li><b>Vendored Effect libs.</b> <code>http-recorder</code> and <code>effect-drizzle-sqlite</code> are kept generic and private so they can be upstreamed later.</li>
+    </ul>
+
+    <h3 class="section-h">Open questions</h3>
+    <ul class="open-q">
+      <li>SDK v1 ↔ v2 versioning &mdash; is v1 deprecated or maintained indefinitely?</li>
+      <li>Is the docs site rebuilt automatically whenever the OpenAPI spec changes?</li>
+      <li>Is there a plugin registry, or are plugins purely user-imported?</li>
+      <li>Are container images pushed on every <code>containers.yml</code> run, or only on tags?</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ CROSS-CUTTING ============================ -->
+<div class="pattern-block" id="cross">
+  <h2>Cross-cutting patterns</h2>
+  <p class="subtitle">Patterns that recur across multiple scopes &mdash; the architectural backbone of the monorepo.</p>
+  <ul class="cross">
+    <li>
+      <b>Effect-TS as the runtime fabric.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-b">B</span><span class="pill pill-d">D</span><span class="pill pill-e">E</span></span>
+      &nbsp;Services are <code>Context.Service</code> + <code>Layer</code> &mdash; the CLI (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/effect/instance-state.ts">effect/instance-state.ts</a>), the core / llm packages (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/plugin.ts">core/src/plugin.ts</a>), the stats ingest server (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/stats/server">stats/server/</a>), and the internal HTTP recorder / Drizzle libs (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/effect-drizzle-sqlite">effect-drizzle-sqlite/</a>) all share the same DI / Layer / Stream vocabulary.
+    </li>
+    <li>
+      <b>Schema-first domain modelling.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-b">B</span><span class="pill pill-d">D</span></span>
+      &nbsp;Effect <code>Schema</code> / Zod define every public payload &mdash; branded IDs (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/agent.ts">core/src/agent.ts</a>), tagged errors (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/cli/error.ts">opencode/src/cli/error.ts</a>), and Zod DTOs in the console (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/account.ts">console/core/src/account.ts</a>). Codecs are the source of truth, not types.
+    </li>
+    <li>
+      <b>OpenAPI-generated SDK is the contract.</b>
+      <span class="scope-tags"><span class="pill pill-c">C</span><span class="pill pill-d">D</span><span class="pill pill-e">E</span></span>
+      &nbsp;<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/sdk/openapi.json">sdk/openapi.json</a> is generated by the CLI and consumed by the desktop / web app (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/context/server-sdk.tsx">app/src/context/server-sdk.tsx</a>), the Slack bot (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/slack/src">slack/src/</a>), and external integrations.
+    </li>
+    <li>
+      <b>Drizzle ORM.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-d">D</span><span class="pill pill-e">E</span></span>
+      &nbsp;Same ORM, different backends: local SQLite for the CLI session DB (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/session.sql.ts">session/session.sql.ts</a>), PlanetScale MySQL for the console (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/core/src/schema">console/core/src/schema/</a>), and an internal Effect adapter that holds them together (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/effect-drizzle-sqlite/src">effect-drizzle-sqlite/src/</a>).
+    </li>
+    <li>
+      <b>SolidJS + SolidStart for every web surface.</b>
+      <span class="scope-tags"><span class="pill pill-c">C</span><span class="pill pill-d">D</span></span>
+      &nbsp;The desktop app (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/app/src/app.tsx">app/src/app.tsx</a>), the console dashboard (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/console/app">console/app/</a>), and the enterprise share app (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/enterprise/src">enterprise/src/</a>) are all SolidStart, sharing primitives from <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/ui/src">packages/ui/src/</a>.
+    </li>
+    <li>
+      <b>Bun runtime end-to-end.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-d">D</span><span class="pill pill-e">E</span></span>
+      &nbsp;The CLI (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/index.ts">opencode/src/index.ts</a>), release scripts (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/script/publish.ts">script/publish.ts</a>), stats services, and even the base container layer (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/containers/bun-node">containers/bun-node/</a>) run on Bun. Turborepo coordinates the workspaces (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/turbo.json">turbo.json</a>).
+    </li>
+    <li>
+      <b>Projector / event-stream pattern.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-b">B</span></span>
+      &nbsp;Typed events (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/event.ts">core/src/event.ts</a>) are published to a PubSub bus (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/bus/index.ts">opencode/src/bus/index.ts</a>) and projected onto session views (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/server/projectors.ts">server/projectors.ts</a>) consumed by the SDK over the wire.
+    </li>
+    <li>
+      <b>Plugin / hook extensibility.</b>
+      <span class="scope-tags"><span class="pill pill-a">A</span><span class="pill pill-b">B</span><span class="pill pill-e">E</span></span>
+      &nbsp;Hook spec defined in core (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/plugin.ts">core/src/plugin.ts</a>), invoked by the CLI plugin host (<a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin">opencode/src/plugin/</a>), packaged for third parties as <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin">packages/plugin/</a>.
+    </li>
+  </ul>
+</div>
+
+<!-- ============================ FOOTER ============================ -->
+<footer class="repo" id="uncharted">
+  <h2>Uncharted &amp; open questions</h2>
+
+  <h3>Top-level paths not covered by any scope</h3>
+  <ul class="uncharted">
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.husky">.husky/</a> &mdash; Git hooks (lint-staged / format on commit).</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.opencode">.opencode/</a> &mdash; this repo's own opencode config &amp; agent files (dogfooding).</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.understand-anything">.understand-anything/</a> &mdash; analysis artefact directory.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/.zed">.zed/</a> &mdash; Zed editor workspace settings.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/nix">nix/</a> + <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/flake.nix">flake.nix</a> &mdash; Nix dev shell &amp; reproducible build inputs.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/patches">patches/</a> &mdash; npm package patches.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/perf">perf/</a> &mdash; perf test-suite spec (currently only <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/perf/test-suite.md">perf/test-suite.md</a>).</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/architecture-output">architecture-output/</a> &mdash; pre-existing analysis artefacts.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/demo-examples">demo-examples/</a> &mdash; workshop / demo HTML examples.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/install">install</a> &mdash; bash one-line installer (<code>curl | bash</code>).</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/STATS.md">STATS.md</a> &mdash; aggregated codebase statistics dump.</li>
+    <li><a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/CONTRIBUTING.md">CONTRIBUTING.md</a>, <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/SECURITY.md">SECURITY.md</a>, <a class="file" href="file:///workspaces/workshop-thin-repo/workshop/opencode/AGENTS.md">AGENTS.md</a> &mdash; project meta-docs.</li>
+    <li>23 translated <code>README.*.md</code> files at the repo root.</li>
+  </ul>
+
+  <h3>Aggregate open questions</h3>
+  <ul class="open-q">
+    <li><b>Persistence boundary.</b> Core defines storage interfaces; the CLI uses SQLite / Drizzle and the console uses PlanetScale / Drizzle &mdash; but the bridge for sharing sessions to the cloud (Scope D's share endpoints) isn't fully traced.</li>
+    <li><b>Subagent execution.</b> Agent config supports nested subagents but the spawn / context-propagation flow isn't directly visible from the sampled files.</li>
+    <li><b>Zen gateway state machine.</b> Where rate-limit state actually lives (Redis vs. <code>ModelTpsRateLimitTable</code>) and how it coordinates with billing isn't fully resolved.</li>
+    <li><b>Plugin loading.</b> Discovery (npm vs. local dir vs. registry) and hook precedence / error handling are still open.</li>
+    <li><b>SDK versioning.</b> v1 ↔ v2 split &mdash; deprecation timeline and migration story for downstream consumers.</li>
+    <li><b>Reconnection semantics.</b> Desktop multi-server switching and remote SSH disconnects &mdash; how subscriptions resume.</li>
+  </ul>
+
+  <div class="caveat">
+    <b>Browser note.</b> Chrome and Edge block <code>file://</code> &rarr; <code>file://</code> navigation by default for security. To enable click-through on this page, launch your browser with both an access flag and an isolated profile, for example:
+    <br><br>
+    <code>chrome --allow-file-access-from-files --user-data-dir=/tmp/file-access /workspaces/workshop-thin-repo/workshop/opencode/docs/architecture-map.html</code>
+    <br><br>
+    Firefox follows <code>file://</code> links between local files without configuration. VS Code's Markdown preview also resolves them when opened from the workspace.
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

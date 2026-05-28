@@ -1,726 +1,992 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>opencode — Architecture</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>opencode — runtime primitives</title>
 <style>
   :root {
-    --bg: #0e1014;
-    --bg-elev: #161922;
-    --bg-elev-2: #1d2230;
-    --border: #2a3041;
-    --border-strong: #3a4258;
-    --fg: #e7ecf3;
-    --fg-dim: #9aa5b8;
-    --fg-mute: #6b7689;
-    --accent: #ffb454;
-    --accent-2: #7ad9ff;
-    --green: #7bd88f;
-    --red: #ff6b6b;
-    --purple: #c39bff;
-    --pink: #ff8ec5;
-    --blue: #7ad9ff;
-    --orange: #ffb454;
-    --yellow: #f0d56b;
+    --bg: #0e0a14;
+    --panel: #15101e;
+    --panel-2: #1a1428;
+    --ink: #ece6f5;
+    --ink-dim: #a39bb3;
+    --ink-mute: #6f6680;
+    --rule: #2a2240;
+    --accent: #b794ff;
+    --accent-2: #8b5cf6;
+    --accent-dim: #5b3a98;
+    --code: #d7c4ff;
+    --warn: #ffb86c;
+    --good: #6cf2a2;
+    --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: var(--bg);
-    color: var(--fg);
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.55;
-  }
+  html, body { margin: 0; padding: 0; }
   body {
-    min-height: 100vh;
-    background:
-      radial-gradient(1200px 600px at 20% -10%, rgba(255, 180, 84, 0.08), transparent 60%),
-      radial-gradient(1000px 500px at 90% 0%, rgba(122, 217, 255, 0.06), transparent 60%),
-      var(--bg);
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(ellipse at 10% 0%, rgba(139,92,246,0.10), transparent 50%),
+      radial-gradient(ellipse at 90% 10%, rgba(183,148,255,0.06), transparent 50%);
+    background-attachment: fixed;
   }
-  header {
-    padding: 56px 48px 24px;
-    max-width: 1400px;
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: #fff; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  code, .mono { font-family: var(--mono); font-size: 0.875em; }
+
+  /* Header */
+  header.top {
+    padding: 64px 48px 32px;
+    max-width: 1280px;
     margin: 0 auto;
+    border-bottom: 1px solid var(--rule);
   }
-  header h1 {
-    margin: 0 0 10px;
-    font-size: 32px;
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: 56px;
+    font-weight: 700;
     letter-spacing: -0.02em;
-    font-weight: 600;
+    line-height: 1.05;
   }
-  header h1 .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: var(--accent); }
-  header .lede {
-    color: var(--fg-dim);
-    max-width: 760px;
+  h1 .slash { color: var(--accent); }
+  .lede {
+    max-width: 720px;
+    font-size: 17px;
+    color: var(--ink-dim);
     margin: 0;
   }
-  header .meta {
-    margin-top: 18px;
-    color: var(--fg-mute);
+  .meta {
+    margin-top: 24px;
+    font-family: var(--mono);
     font-size: 12px;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--ink-mute);
   }
-  main { padding: 0 48px 80px; max-width: 1400px; margin: 0 auto; }
-
-  .legend {
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    margin: 8px 0 28px;
-    padding: 12px 16px;
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 12px;
-    color: var(--fg-dim);
-  }
-  .legend .dot {
+  .meta span { margin-right: 18px; }
+  .meta .pulse {
     display: inline-block;
-    width: 10px;
-    height: 10px;
+    width: 6px; height: 6px;
+    background: var(--good);
     border-radius: 50%;
     margin-right: 6px;
     vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(108,242,162, 0.4);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(108,242,162, 0.45); }
+    50% { box-shadow: 0 0 0 6px rgba(108,242,162, 0); }
   }
 
-  .pipeline {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 12px;
-    margin: 0 0 36px;
+  /* Nav */
+  nav.toc {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(14, 10, 20, 0.92);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--rule);
   }
-  .pipeline .stage {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px 14px 12px;
-    position: relative;
-  }
-  .pipeline .stage::after {
-    content: "→";
-    position: absolute;
-    right: -16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--fg-mute);
-    font-size: 18px;
-  }
-  .pipeline .stage:last-child::after { content: ""; }
-  .pipeline .stage .num {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11px;
-    color: var(--fg-mute);
-  }
-  .pipeline .stage .name {
-    font-weight: 600;
-    margin: 4px 0 6px;
-    font-size: 14px;
-    color: var(--fg);
-  }
-  .pipeline .stage .desc {
-    font-size: 12px;
-    color: var(--fg-dim);
-  }
-
-  h2.section {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--fg-mute);
-    margin: 36px 0 14px;
-  }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-    gap: 16px;
-  }
-  .card {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 18px 20px 16px;
-    transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  nav.toc .inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 48px;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    align-items: center;
   }
-  .card:hover {
-    border-color: var(--border-strong);
-    background: var(--bg-elev-2);
-  }
-  .card.expanded { border-color: var(--accent); }
-  .card .head {
-    display: flex;
+  nav.toc a {
+    display: inline-flex;
     align-items: baseline;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .card .head .tag {
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: var(--bg-elev-2);
-    color: var(--fg-dim);
-    border: 1px solid var(--border);
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  }
-  .card h3 {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 600;
-    flex: 1;
-  }
-  .card .chev {
-    color: var(--fg-mute);
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: var(--mono);
     font-size: 12px;
-    transition: transform 0.15s ease;
+    color: var(--ink-dim);
+    border: 1px solid transparent;
+    transition: background .15s, color .15s, border-color .15s;
   }
-  .card.expanded .chev { transform: rotate(90deg); }
-  .card p.summary {
-    margin: 0;
-    color: var(--fg-dim);
+  nav.toc a:hover {
+    background: var(--panel);
+    color: var(--ink);
+    border-color: var(--rule);
+    text-decoration: none;
+  }
+  nav.toc a .num {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  nav.toc .sep {
+    color: var(--ink-mute);
+    margin: 0 4px;
+  }
+
+  /* Main */
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 48px 96px;
+  }
+  section.primitive {
+    padding: 64px 0 32px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 56px;
+    scroll-margin-top: 72px;
+  }
+  section.primitive:last-of-type { border-bottom: 1px solid var(--rule); }
+  section.primitive .head {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+  }
+  section.primitive .num {
+    font-family: var(--mono);
     font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
   }
-  .card .body {
-    display: none;
-    border-top: 1px dashed var(--border);
-    padding-top: 12px;
-    margin-top: 4px;
+  section.primitive h2 {
+    font-size: 36px;
+    font-weight: 700;
+    margin: 4px 0 16px;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
-  .card.expanded .body { display: block; }
-  .card .body .note {
-    color: var(--fg-dim);
-    font-size: 12.5px;
-    margin: 0 0 12px;
+  section.primitive .summary {
+    color: var(--ink-dim);
+    font-size: 15px;
+    margin: 0 0 16px;
   }
-  .card .body .note code {
-    background: var(--bg-elev-2);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 0 4px;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11.5px;
-    color: var(--fg);
+  section.primitive .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 16px;
   }
-  .files {
+  section.primitive .tag {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    padding: 4px 8px;
+    border-radius: 4px;
+  }
+  section.primitive .tag.warn {
+    color: var(--warn);
+    border-color: rgba(255,184,108,0.3);
+    background: rgba(255,184,108,0.06);
+  }
+  section.primitive .tag.good {
+    color: var(--good);
+    border-color: rgba(108,242,162,0.3);
+    background: rgba(108,242,162,0.06);
+  }
+
+  /* Citations */
+  ul.cites {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
   }
-  .files li {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 12px;
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex-wrap: wrap;
+  ul.cites li {
+    padding: 16px 0;
+    border-top: 1px dashed var(--rule);
   }
-  .files a {
-    color: var(--accent-2);
-    text-decoration: none;
-    border-bottom: 1px dotted transparent;
-  }
-  .files a:hover {
-    border-bottom-color: var(--accent-2);
-  }
-  .files .note {
-    color: var(--fg-mute);
-    font-size: 11.5px;
-  }
-
-  .card[data-cat="loop"]    .tag { color: var(--orange); border-color: rgba(255,180,84,0.4); }
-  .card[data-cat="tool"]    .tag { color: var(--blue);   border-color: rgba(122,217,255,0.4); }
-  .card[data-cat="perm"]    .tag { color: var(--red);    border-color: rgba(255,107,107,0.4); }
-  .card[data-cat="sandbox"] .tag { color: var(--green);  border-color: rgba(123,216,143,0.4); }
-  .card[data-cat="plugin"]  .tag { color: var(--purple); border-color: rgba(195,155,255,0.4); }
-  .card[data-cat="bus"]     .tag { color: var(--pink);   border-color: rgba(255,142,197,0.4); }
-  .card[data-cat="infra"]   .tag { color: var(--yellow); border-color: rgba(240,213,107,0.4); }
-
-  footer {
-    margin-top: 48px;
-    padding-top: 20px;
-    border-top: 1px solid var(--border);
-    color: var(--fg-mute);
-    font-size: 12px;
-    text-align: center;
-  }
-  footer code {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    color: var(--fg-dim);
-  }
-  .hint {
-    margin: 0 0 24px;
-    padding: 10px 14px;
-    background: rgba(255,180,84,0.07);
-    border-left: 3px solid var(--accent);
-    color: var(--fg-dim);
+  ul.cites li:first-child { border-top: none; padding-top: 4px; }
+  ul.cites li .path {
+    font-family: var(--mono);
     font-size: 12.5px;
-    border-radius: 4px;
+    color: var(--code);
+    word-break: break-all;
+    display: block;
+    margin-bottom: 6px;
   }
-  .hint b { color: var(--fg); }
-  .hint code {
-    background: var(--bg-elev);
-    border: 1px solid var(--border);
+  ul.cites li .path a {
+    color: var(--code);
+    border-bottom: 1px dotted var(--accent-dim);
+  }
+  ul.cites li .path a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    text-decoration: none;
+  }
+  ul.cites li .path .lines {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  ul.cites li p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  ul.cites li p .k {
+    font-family: var(--mono);
+    background: var(--panel);
+    color: var(--code);
+    padding: 1px 5px;
     border-radius: 3px;
-    padding: 0 4px;
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 11.5px;
-    color: var(--fg);
+    font-size: 12.5px;
+    border: 1px solid var(--rule);
   }
 
-  @media (max-width: 1000px) {
-    .pipeline { grid-template-columns: repeat(2, 1fr); }
-    .pipeline .stage::after { display: none; }
+  /* Subgroup heading inside a section */
+  .subgroup {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--accent);
+    margin: 28px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--rule);
   }
-  @media (max-width: 640px) {
-    header, main { padding-left: 20px; padding-right: 20px; }
-    .pipeline { grid-template-columns: 1fr; }
+  .subgroup:first-child { margin-top: 0; }
+
+  /* Callout */
+  .callout {
+    margin: 16px 0;
+    padding: 16px 18px;
+    background: var(--panel);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--ink-dim);
+  }
+  .callout.warn {
+    border-left-color: var(--warn);
+    background: rgba(255,184,108,0.04);
+  }
+  .callout strong { color: var(--ink); }
+  .callout code {
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--code);
+  }
+
+  /* Footer */
+  footer {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 48px 48px 80px;
+    color: var(--ink-mute);
+    font-family: var(--mono);
+    font-size: 12px;
+    border-top: 1px solid var(--rule);
+  }
+  footer .row {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  @media (max-width: 900px) {
+    header.top { padding: 40px 24px 24px; }
+    h1 { font-size: 40px; }
+    nav.toc .inner { padding: 12px 24px; }
+    main { padding: 0 24px 64px; }
+    section.primitive {
+      grid-template-columns: 1fr;
+      gap: 24px;
+      padding: 40px 0 24px;
+    }
+    section.primitive .head { position: static; }
+    footer { padding: 32px 24px 48px; }
   }
 </style>
 </head>
 <body>
 
-<header>
-  <h1><span class="mono">opencode</span> — runtime architecture</h1>
+<header class="top">
+  <div class="eyebrow">Architecture Reference · 2026</div>
+  <h1>opencode<span class="slash">/</span><br>runtime primitives</h1>
   <p class="lede">
-    How a user prompt travels through opencode: from the CLI/server, through the
-    agent loop and LLM streaming layer, out to a registry of tools that execute under
-    a permission gate and shell sandbox, with a plugin host and an event bus connecting
-    everything.
+    How the eight named primitives of an agentic coding runtime are implemented in this
+    repository, mapped to source files with line precision. Every code path cited below
+    points at <span class="mono">packages/opencode/src/</span> unless noted otherwise.
   </p>
   <div class="meta">
-    repo root: <span id="repoRoot"></span>
-    &nbsp;·&nbsp; package: <code>packages/opencode/src/</code>
+    <span><span class="pulse"></span>repo at <code>/workspaces/workshop-thin-repo/workshop/opencode</code></span>
+    <span>branch <code>demo</code></span>
+    <span>generated 2026-05-27</span>
   </div>
 </header>
 
+<nav class="toc">
+  <div class="inner">
+    <a href="#context"><span class="num">01</span> context</a><span class="sep">/</span>
+    <a href="#tools"><span class="num">02</span> tools</a><span class="sep">/</span>
+    <a href="#permissions"><span class="num">03</span> permissions &amp; sandbox</a><span class="sep">/</span>
+    <a href="#skills"><span class="num">04</span> skills</a><span class="sep">/</span>
+    <a href="#plugins"><span class="num">05</span> plugins</a><span class="sep">/</span>
+    <a href="#mcp"><span class="num">06</span> mcp</a><span class="sep">/</span>
+    <a href="#memory"><span class="num">07</span> memory</a><span class="sep">/</span>
+    <a href="#subagents"><span class="num">08</span> subagents</a><span class="sep">/</span>
+    <a href="#additional"><span class="num">+</span> additional</a>
+  </div>
+</nav>
+
 <main>
 
-  <p class="hint">
-    <b>Tip:</b> click a card to expand and reveal source files. Files open via
-    <code>file://</code> links — your browser may open them as plain text, or you can right-click → "Copy link" to paste into an editor.
-  </p>
-
-  <div class="legend">
-    <span><span class="dot" style="background:var(--orange)"></span>agent loop</span>
-    <span><span class="dot" style="background:var(--blue)"></span>tools</span>
-    <span><span class="dot" style="background:var(--red)"></span>permissions</span>
-    <span><span class="dot" style="background:var(--green)"></span>sandbox / shell</span>
-    <span><span class="dot" style="background:var(--purple)"></span>plugins</span>
-    <span><span class="dot" style="background:var(--pink)"></span>event bus</span>
-    <span><span class="dot" style="background:var(--yellow)"></span>infra</span>
-  </div>
-
-  <div class="pipeline">
-    <div class="stage">
-      <div class="num">01</div>
-      <div class="name">CLI / Server</div>
-      <div class="desc">Entry point: TUI command or HTTP request lands a user message in a session.</div>
-    </div>
-    <div class="stage">
-      <div class="num">02</div>
-      <div class="name">Session &amp; Processor</div>
-      <div class="desc">Persists messages, drives the loop, manages compaction and revert.</div>
-    </div>
-    <div class="stage">
-      <div class="num">03</div>
-      <div class="name">LLM stream</div>
-      <div class="desc">Builds prompts, streams tokens &amp; tool calls from the model provider.</div>
-    </div>
-    <div class="stage">
-      <div class="num">04</div>
-      <div class="name">Tools (with permission)</div>
-      <div class="desc">Each tool call is validated, gated by permission, and executed.</div>
-    </div>
-    <div class="stage">
-      <div class="num">05</div>
-      <div class="name">Bus &amp; Storage</div>
-      <div class="desc">Events flow to subscribers (UI, sync, plugins) and persist to the DB.</div>
+<!-- 1. CONTEXT WINDOW -->
+<section class="primitive" id="context">
+  <div class="head">
+    <div class="num">PRIMITIVE 01</div>
+    <h2>Context window</h2>
+    <p class="summary">
+      Turn assembly is staged: load history, filter compacted ranges, project to the
+      AI SDK <code>ModelMessage</code> shape, prepend a composed system block, then hand
+      the array to <code>streamText</code>. Reminders are injected synthetically into
+      the last user message; overflow triggers automatic compaction.
+    </p>
+    <div class="tags">
+      <span class="tag">turn-state</span>
+      <span class="tag">compaction</span>
+      <span class="tag">system-prompt</span>
     </div>
   </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/prompt.ts">packages/opencode/src/session/prompt.ts</a><span class="lines"> : 1256–1258</span></span>
+        <p>History is loaded, <span class="k">MessageV2.filterCompactedEffect()</span> drops compacted turns, then <span class="k">MessageV2.latest()</span> picks the most recent user/assistant pair plus pending subtask parts.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/prompt.ts">packages/opencode/src/session/prompt.ts</a><span class="lines"> : 1435–1441</span></span>
+        <p>System prompt assembly: provider-specific prompt + environment info + instruction files (AGENTS.md/CLAUDE.md) are collected in parallel and joined.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/prompt.ts">packages/opencode/src/session/prompt.ts</a><span class="lines"> : 1444–1455</span></span>
+        <p>Final dispatch hands system block, converted messages, tools dict, and a MAX_STEPS suffix to <span class="k">handle.process()</span> for streaming.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/message-v2.ts">packages/opencode/src/session/message-v2.ts</a><span class="lines"> : 630–739</span></span>
+        <p><span class="k">toModelMessagesEffect()</span> projects internal MessageV2 parts (text, file, tool_call, reasoning, attachment) to the AI SDK <code>ModelMessage</code> shape.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/reminders.ts">packages/opencode/src/session/reminders.ts</a><span class="lines"> : 14–80</span></span>
+        <p>System reminders (plan-mode entry/exit, agent switches) are appended as synthetic text parts on the last user message, not as separate system entries.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/llm/request.ts">packages/opencode/src/session/llm/request.ts</a><span class="lines"> : 54–103</span></span>
+        <p>System array is composed from agent prompt + env + instructions + user override. For OAuth/workflow models, system content is hoisted into <code>options.instructions</code> rather than a system-role message.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/overflow.ts">packages/opencode/src/session/overflow.ts</a><span class="lines"> : 20–32</span></span>
+        <p><span class="k">isOverflow()</span> compares total tokens to <em>usable</em> context (model limit minus reserved buffer). If the budget is exceeded and auto-compaction is on, compaction fires.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/compaction.ts">packages/opencode/src/session/compaction.ts</a><span class="lines"> : 245–277</span></span>
+        <p><span class="k">select()</span> keeps the last N recent turns (default 2) under a token budget and stamps a <code>tail_start_id</code> as the cut point; older turns are dropped and summarised.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/message-v2.ts">packages/opencode/src/session/message-v2.ts</a><span class="lines"> : 1014–1064</span></span>
+        <p><span class="k">filterCompacted()</span> reorders the post-compaction stream so the summary assistant message precedes the retained tail — the LLM sees a chronologically clean history.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/system.ts">packages/opencode/src/session/system.ts</a><span class="lines"> : 65–77</span></span>
+        <p>Available skills are listed in the system prompt as a <code>&lt;available_skills&gt;</code> XML block, filtered by agent permissions via <span class="k">Skill.available(agent)</span>.</p>
+      </li>
+    </ul>
+  </div>
+</section>
 
-  <h2 class="section">Core modules</h2>
-  <div class="grid" id="grid"></div>
+<!-- 2. TOOLS -->
+<section class="primitive" id="tools">
+  <div class="head">
+    <div class="num">PRIMITIVE 02</div>
+    <h2>Tools</h2>
+    <p class="summary">
+      Each tool is an <code>Effect.Schema</code>-typed <code>Def</code> with an
+      <code>execute</code> function. The registry lazily wires builtin + plugin + MCP
+      tools and feature-gates them per model. <code>SessionTools.resolve()</code> wraps
+      each tool for the AI SDK with permission checks and lifecycle hooks.
+    </p>
+    <div class="tags">
+      <span class="tag">effect-schema</span>
+      <span class="tag">ai-sdk</span>
+      <span class="tag">lazy-registry</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/tool.ts">packages/opencode/src/tool/tool.ts</a><span class="lines"> : 53–63</span></span>
+        <p>The <span class="k">Def</span> interface — every tool exports <code>{ id, description, parameters, jsonSchema, execute }</code>; <code>execute</code> returns an <span class="k">ExecuteResult</span>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/tool.ts">packages/opencode/src/tool/tool.ts</a><span class="lines"> : 34–44</span></span>
+        <p>The execution <span class="k">Context</span> carries session/message IDs, an abort signal, a permission asker, message history, and a metadata-update callback.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/tool.ts">packages/opencode/src/tool/tool.ts</a><span class="lines"> : 149–167</span></span>
+        <p><span class="k">define()</span> factory typed-validates parameters with Effect Schema and applies per-agent output truncation around <code>execute</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/registry.ts">packages/opencode/src/tool/registry.ts</a><span class="lines"> : 107–270</span></span>
+        <p>The registry layer lazily initialises builtin + plugin tools and feature-gates (WebSearch, LSP, apply_patch vs edit) based on model/flags.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/registry.ts">packages/opencode/src/tool/registry.ts</a><span class="lines"> : 141–197</span></span>
+        <p>Plugin tools are bridged in: Zod schemas are translated to JSON Schema and the plugin's <code>execute</code> is wrapped to normalise promises and truncate output.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/registry.ts">packages/opencode/src/tool/registry.ts</a><span class="lines"> : 316–361</span></span>
+        <p><span class="k">tools()</span> filters the active set per model capability and fires <code>tool.definition</code> plugin hooks for schema customisation before returning.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/tools.ts">packages/opencode/src/session/tools.ts</a><span class="lines"> : 24–115</span></span>
+        <p><span class="k">SessionTools.resolve()</span> turns registry defs into AI SDK <code>tool()</code> objects with permission asks, plugin <code>before/after</code> hooks, and artifact handling.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/llm.ts">packages/opencode/src/session/llm.ts</a><span class="lines"> : 272–304</span></span>
+        <p><code>streamText()</code> from the AI SDK receives the prepared tools dict and dispatches calls — the processor consumes the resulting <code>tool-call</code>/<code>tool-result</code> events.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/read.ts">packages/opencode/src/tool/read.ts</a><span class="lines"> : 29–37</span></span>
+        <p>Example tool — <code>Read</code> declares params as <code>Schema.Struct</code>; field annotations become JSON-Schema <code>description</code> entries for the model.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/edit.ts">packages/opencode/src/tool/edit.ts</a><span class="lines"> : 58–70</span></span>
+        <p>Example tool — <code>Edit</code> shows the canonical <code>execute(args, ctx)</code> signature returning <code>{ title, metadata, output, attachments }</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/grep.ts">packages/opencode/src/tool/grep.ts</a><span class="lines"> : 32–54</span></span>
+        <p>Example tool — <code>Grep</code> demonstrates <code>ctx.ask()</code> for permission, <code>ctx.abort</code> for cancellation, and a metadata <code>truncated</code> flag.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/invalid.ts">packages/opencode/src/tool/invalid.ts</a><span class="lines"> : 9–20</span></span>
+        <p>Fallback <span class="k">invalid</span> tool — when the model emits malformed tool args, <code>execute_repair</code> in <code>llm.ts:278</code> redirects to it with the parse error.</p>
+      </li>
+    </ul>
+  </div>
+</section>
 
-  <footer>
-    A static, self-contained snapshot generated from
-    <code>packages/opencode/src/</code> on this machine.
-    The links use absolute <code>file://</code> URLs so they only resolve while the source tree stays where it is.
-  </footer>
+<!-- 3. PERMISSIONS & SANDBOX -->
+<section class="primitive" id="permissions">
+  <div class="head">
+    <div class="num">PRIMITIVE 03</div>
+    <h2>Permissions &amp; sandbox</h2>
+    <p class="summary">
+      A last-match-wins rule engine over typed actions (<code>allow</code> /
+      <code>ask</code> / <code>deny</code>) drives every tool call. Bash commands are
+      parsed and matched by command-prefix arity. There is <strong>no OS-level sandbox</strong> —
+      opencode relies on path-containment checks and user prompting; security isolation
+      is the user's responsibility (Docker/VM).
+    </p>
+    <div class="tags">
+      <span class="tag good">allow/ask/deny</span>
+      <span class="tag">arity-aware bash</span>
+      <span class="tag warn">no OS sandbox</span>
+    </div>
+  </div>
+  <div class="body">
+
+    <div class="subgroup">A · Permission model (allow / ask / deny)</div>
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/core/src/permission.ts">packages/core/src/permission.ts</a><span class="lines"> : 21–31</span></span>
+        <p><span class="k">evaluate()</span> walks ruleset arrays last-match-wins with wildcard pattern matching; the default verdict when nothing matches is <code>ask</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/index.ts">packages/opencode/src/permission/index.ts</a><span class="lines"> : 138–140</span></span>
+        <p>Re-exports the core evaluator and threads the <code>allow → continue</code>, <code>deny → DeniedError</code>, <code>ask → prompt</code> flow into tool execution.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/index.ts">packages/opencode/src/permission/index.ts</a><span class="lines"> : 171–211</span></span>
+        <p><span class="k">ask()</span> queues a pending request, fires a bus event, and suspends the tool effect until <span class="k">reply()</span> resolves it.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/index.ts">packages/opencode/src/permission/index.ts</a><span class="lines"> : 213–269</span></span>
+        <p><span class="k">reply()</span> handles user verdicts — <code>"reject"</code> fails all pending requests in the session, <code>"once"</code> proceeds, <code>"always"</code> persists a new approve rule and unblocks any matching pending requests.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/permission.ts">packages/opencode/src/config/permission.ts</a><span class="lines"> : 1–58</span></span>
+        <p>Config schema — nine permission types (<code>read</code>, <code>edit</code>, <code>bash</code>, <code>grep</code>, <code>task</code>, <code>external_directory</code>, <code>webfetch</code>, <code>websearch</code>, <code>skill</code>) × three actions, with per-target pattern matching.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/permission/arity.ts">packages/opencode/src/permission/arity.ts</a><span class="lines"> : 1–163</span></span>
+        <p>Arity table mapping command prefixes (e.g. <code>npm run → 3</code>) to token counts; used to extract a human-readable, matchable command shape from a shell line.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/shell.ts">packages/opencode/src/tool/shell.ts</a><span class="lines"> : 260–410</span></span>
+        <p><span class="k">collect()</span> parses bash/PowerShell AST, extracts referenced file paths, runs path-containment checks, and builds the permission request using the arity-aware prefix.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/agent/subagent-permissions.ts">packages/opencode/src/agent/subagent-permissions.ts</a><span class="lines"> : 17–34</span></span>
+        <p>Subagents inherit parent <code>edit</code> denies (Plan Mode), parent session deny rules, and default to denying <code>task</code>/<code>todowrite</code> unless explicitly granted.</p>
+      </li>
+    </ul>
+
+    <div class="subgroup">B · Sandbox mechanism (path containment only)</div>
+    <div class="callout warn">
+      <strong>Honest disclosure.</strong> <a href="file:///workspaces/workshop-thin-repo/workshop/opencode/SECURITY.md">SECURITY.md</a> states plainly: <em>"opencode does not sandbox the agent. The permission system exists as a UX feature… it is not designed to provide security isolation."</em> True isolation requires Docker or a VM.
+    </div>
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/SECURITY.md">SECURITY.md</a><span class="lines"> : 15–19</span></span>
+        <p>Explicit statement that the agent is unsandboxed; permissions are a UX guardrail, not a security boundary.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/project/instance-context.ts">packages/opencode/src/project/instance-context.ts</a><span class="lines"> : 18–24</span></span>
+        <p><span class="k">containsPath()</span> tests whether a path falls inside the project or an attached worktree; drives the <code>external_directory</code> permission prompt.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/external-directory.ts">packages/opencode/src/tool/external-directory.ts</a><span class="lines"> : 16–45</span></span>
+        <p>Validates file paths before file operations; if the target lies outside the project, requests <code>external_directory</code> permission with the parent dir as the glob target.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/shell.ts">packages/opencode/src/tool/shell.ts</a><span class="lines"> : 289–306</span></span>
+        <p>Shell execution uses Effect's <code>ChildProcess.make()</code> with <code>shell: true</code> — standard Node spawning, <strong>no seatbelt, bubblewrap, or restricted tokens</strong>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/shell.ts">packages/opencode/src/tool/shell.ts</a><span class="lines"> : 424–596</span></span>
+        <p><span class="k">run()</span> handles stdout/stderr capture, timeout, and abort, but applies no syscall filtering or capability dropping.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 4. SKILLS -->
+<section class="primitive" id="skills">
+  <div class="head">
+    <div class="num">PRIMITIVE 04</div>
+    <h2>Skills</h2>
+    <p class="summary">
+      Skills are <code>SKILL.md</code> files (YAML frontmatter + body) discovered from
+      <code>~/.claude</code>, <code>~/.agents</code>, project config dirs, and remote
+      URLs. They're listed by name/description in the system prompt and loaded on
+      demand by a dedicated <code>Skill</code> tool.
+    </p>
+    <div class="tags">
+      <span class="tag">SKILL.md</span>
+      <span class="tag">frontmatter</span>
+      <span class="tag">lazy-load</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 20–25</span></span>
+        <p>Three discovery glob patterns — <span class="k">EXTERNAL_SKILL_PATTERN</span> for <code>~/.claude</code> &amp; <code>~/.agents</code>, <span class="k">OPENCODE_SKILL_PATTERN</span> for project config dirs, and <span class="k">SKILL_PATTERN</span> for custom paths.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 52–58</span></span>
+        <p><span class="k">isSkillFrontmatter()</span> requires <code>name</code> (string) plus optional <code>description</code>; anything without a description is filtered out at list time.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 104–141</span></span>
+        <p><span class="k">add()</span> parses <code>SKILL.md</code> via <code>ConfigMarkdown.parse()</code>, extracts frontmatter + body, and stores an <code>Info</code> record with name, description, location, and content.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 173–233</span></span>
+        <p><span class="k">discoverSkills()</span> scans four sources: external dirs, project config dirs, <code>skills.paths</code> from <code>opencode.json</code>, and <code>skills.urls</code> (fetched via <code>Discovery</code>).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/discovery.ts">packages/opencode/src/skill/discovery.ts</a><span class="lines"> : 54–104</span></span>
+        <p><span class="k">Discovery.pull()</span> downloads a remote <code>index.json</code> manifest, fetches each listed skill's files into a cache dir, and confirms <code>SKILL.md</code> is present.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 274–279</span></span>
+        <p>The built-in <code>customize-opencode</code> skill is pre-registered before disk discovery so user skills can override it; the body lives in <code>prompt/customize-opencode.md</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/index.ts">packages/opencode/src/skill/index.ts</a><span class="lines"> : 326–351</span></span>
+        <p><span class="k">fmt()</span> renders the skill catalogue — markdown list or verbose XML — and is filtered by <span class="k">Skill.available(agent)</span> before injection.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/skill.ts">packages/opencode/src/tool/skill.ts</a><span class="lines"> : 14–72</span></span>
+        <p>The <span class="k">Skill</span> tool takes a <code>name</code>, asks permission, loads the body, samples up to 10 files from the skill dir, and returns an XML-wrapped block to the conversation.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/skills.ts">packages/opencode/src/config/skills.ts</a><span class="lines"> : 3–10</span></span>
+        <p>Config schema — <code>skills.paths</code> (local dirs scanned recursively for <code>**/SKILL.md</code>) and <code>skills.urls</code> (remote manifests).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/skill/prompt/customize-opencode.md">packages/opencode/src/skill/prompt/customize-opencode.md</a><span class="lines"> : 144–174</span></span>
+        <p>Authoritative skill format docs — folder layout <code>skill(s)/&lt;name&gt;/SKILL.md</code>, mandatory <code>description</code>, and progressive-disclosure pattern.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 5. PLUGINS -->
+<section class="primitive" id="plugins">
+  <div class="head">
+    <div class="num">PRIMITIVE 05</div>
+    <h2>Plugins</h2>
+    <p class="summary">
+      A plugin is an async function exporting a <code>Hooks</code> object. The
+      <code>PluginLoader</code> resolves npm or <code>file://</code> specs, dynamically
+      imports them, and calls them with a <code>PluginInput</code> bundle (SDK client,
+      project context, Bun shell). Hooks span events, config, tool definitions, auth,
+      provider, chat lifecycle, shell env, and tool execute before/after.
+    </p>
+    <div class="tags">
+      <span class="tag">async-fn</span>
+      <span class="tag">npm + file://</span>
+      <span class="tag">18+ hooks</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/src/index.ts">packages/plugin/src/index.ts</a><span class="lines"> : 1–334</span></span>
+        <p>Public SDK — defines <span class="k">Plugin</span> (async fn → Hooks) and <span class="k">PluginModule</span> shape (<code>id</code>, <code>server</code>, optional <code>tui</code>).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/src/index.ts">packages/plugin/src/index.ts</a><span class="lines"> : 56–66</span></span>
+        <p><span class="k">PluginInput</span> bundles the SDK client, project context, directory/worktree paths, a workspace-adapter register, and an optional Bun <code>$</code> shell.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/src/index.ts">packages/plugin/src/index.ts</a><span class="lines"> : 222–333</span></span>
+        <p>The <span class="k">Hooks</span> interface — <code>event</code>, <code>config</code>, <code>tool</code>, <code>auth</code>, <code>provider</code>, <code>chat.message</code>, <code>chat.params</code>, <code>permission.ask</code>, <code>shell.env</code>, <code>tool.execute.before/after</code>, plus experimental compaction/system hooks.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/loader.ts">packages/opencode/src/plugin/loader.ts</a><span class="lines"> : 75–236</span></span>
+        <p><span class="k">PluginLoader</span> normalises specs into plans, resolves npm or file targets, detects the entrypoint, validates engine compatibility, and dynamic-imports with retry.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/index.ts">packages/opencode/src/plugin/index.ts</a><span class="lines"> : 99–109</span></span>
+        <p>Plugins are invoked sequentially, supporting both V1 (<code>id</code> + <code>server</code>/<code>tui</code>) and legacy patterns; ordering is deterministic.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/index.ts">packages/opencode/src/plugin/index.ts</a><span class="lines"> : 61–71</span></span>
+        <p>Nine built-in plugins ship in-tree — auth plugins for Codex, Copilot, Gitlab, Poe, Cloudflare Workers/AI Gateway, Azure, DigitalOcean, xAI.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/index.ts">packages/opencode/src/plugin/index.ts</a><span class="lines"> : 263–276</span></span>
+        <p><span class="k">trigger()</span> walks registered hooks for a given name and composes them as Effect promises.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/plugin.ts">packages/opencode/src/config/plugin.ts</a><span class="lines"> : 10–24</span></span>
+        <p>Spec schema — plain string identifiers or tuples with inline options; <code>Origin</code> tracks provenance (source file, global vs local) for dedup across merged configs.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/plugin.ts">packages/opencode/src/config/plugin.ts</a><span class="lines"> : 26–38</span></span>
+        <p>Scans <code>{plugin,plugins}/*.{ts,js}</code> alongside config and collects them as <code>file://</code> specs; also accepts npm packages and CLI args.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/shared.ts">packages/opencode/src/plugin/shared.ts</a><span class="lines"> : 103–169</span></span>
+        <p>Entrypoint resolution checks <code>package.json</code> <code>exports</code> (<code>./server</code>, <code>./tui</code>), falls back to <code>main</code>, and finally a directory index.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/plugin/meta.ts">packages/opencode/src/plugin/meta.ts</a><span class="lines"> : 1–187</span></span>
+        <p>Persistent plugin metadata (load count, fingerprints, mtimes) stored in <code>plugin-meta.json</code> for diagnostics and cache invalidation.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/plugin/src/example.ts">packages/plugin/src/example.ts</a><span class="lines"> : 1–18</span></span>
+        <p>Minimal reference plugin — exports a <span class="k">Plugin</span> function returning hooks with a custom tool definition.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 6. MCP -->
+<section class="primitive" id="mcp">
+  <div class="head">
+    <div class="num">PRIMITIVE 06</div>
+    <h2>MCP</h2>
+    <p class="summary">
+      Two server types — <code>Local</code> (stdio process) and <code>Remote</code>
+      (HTTP). For remote, opencode tries <code>StreamableHTTPClientTransport</code>
+      first and falls back to SSE. Tool names are prefixed <code>clientName_toolName</code>;
+      prompts surface as dynamic slash-commands, resources as HTTP API endpoints. OAuth
+      with dynamic client registration is supported end-to-end.
+    </p>
+    <div class="tags">
+      <span class="tag">stdio</span>
+      <span class="tag">streamable-http</span>
+      <span class="tag">sse</span>
+      <span class="tag">oauth</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 275–956</span></span>
+        <p>Main MCP service — Effect-based <span class="k">Service</span> with state management, client connections, OAuth flows, and surfacing of tools/prompts/resources into sessions.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/mcp.ts">packages/opencode/src/config/mcp.ts</a><span class="lines"> : 1–60</span></span>
+        <p>Schema for the two server flavours — <code>Local</code> (command-array) and <code>Remote</code> (URL + optional OAuth config).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 3–6</span></span>
+        <p>Imports four transports from <code>@modelcontextprotocol/sdk</code> — <span class="k">StdioClientTransport</span>, <span class="k">StreamableHTTPClientTransport</span>, <span class="k">SSEClientTransport</span>, plus WebSocket via the SDK.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 339–354</span></span>
+        <p>Remote server bring-up tries Streamable HTTP first then SSE; either path is wrapped in an OAuth auth provider when configured.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 158–186</span></span>
+        <p><span class="k">convertMcpTool()</span> wraps an MCP tool def as an AI SDK <code>dynamicTool</code> with JSON-Schema validation and error handling.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 663–696</span></span>
+        <p><span class="k">tools()</span> fans out across connected clients and namespaces returned tools as <code>clientName_toolName</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/tools.ts">packages/opencode/src/session/tools.ts</a><span class="lines"> : 118–130</span></span>
+        <p>SessionTools merges MCP tools with builtin tools after schema transformation for the active model.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 711–719</span></span>
+        <p><span class="k">prompts()</span> and <span class="k">resources()</span> fetch from all connected clients, tagging each with client metadata.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/command/index.ts">packages/opencode/src/command/index.ts</a><span class="lines"> : 112–139</span></span>
+        <p>MCP prompts are surfaced as opencode slash-commands; templates are lazily resolved via <code>getPrompt()</code> on invocation.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/auth.ts">packages/opencode/src/mcp/auth.ts</a><span class="lines"> : 57–100</span></span>
+        <p>OAuth token/client/state storage in <code>mcp-auth.json</code> with expiry checks.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/mcp/index.ts">packages/opencode/src/mcp/index.ts</a><span class="lines"> : 771–830</span></span>
+        <p><span class="k">startAuth()</span> kicks off OAuth — supports dynamic client registration and opens the browser to the auth URL.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/config.ts">packages/opencode/src/config/config.ts</a><span class="lines"> : 223–232</span></span>
+        <p>Top-level <code>mcp</code> record in user config maps server names to <span class="k">ConfigMCP.Info</span> union (Local | Remote).</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7. MEMORY -->
+<section class="primitive" id="memory">
+  <div class="head">
+    <div class="num">PRIMITIVE 07</div>
+    <h2>Memory (AGENTS.md)</h2>
+    <p class="summary">
+      Opencode's always-loaded instruction file is <code>AGENTS.md</code>, with
+      <code>CLAUDE.md</code> and (deprecated) <code>CONTEXT.md</code> as accepted
+      fallbacks. Discovery walks up from the current dir, plus a global override at
+      <code>~/.opencode/AGENTS.md</code>. Each file is prepended with an
+      <em>"Instructions from: &lt;path&gt;"</em> header before being joined into the
+      system prompt.
+    </p>
+    <div class="tags">
+      <span class="tag">AGENTS.md</span>
+      <span class="tag">CLAUDE.md</span>
+      <span class="tag">walk-up</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 14–18</span></span>
+        <p>Filename search order — <code>["AGENTS.md", "CLAUDE.md", "CONTEXT.md"]</code>; <code>CONTEXT.md</code> kept for backward compat only.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 64–65</span></span>
+        <p>Global fallbacks — <code>~/.opencode/AGENTS.md</code> and <code>~/.claude/CLAUDE.md</code> are always merged in alongside project-level matches.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 78–88</span></span>
+        <p><span class="k">relative()</span> walks up from the cwd using <code>globUp()</code>, unless <code>OPENCODE_DISABLE_PROJECT_CONFIG</code> is set, in which case only the global config applies.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 121–132</span></span>
+        <p>Project search stops at the first match found while walking up the directory tree — no stacking from deeper ancestors.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 154–168</span></span>
+        <p><span class="k">system()</span> reads each matched file and remote URL concurrently (8 files / 4 URLs at a time), then prepends a <em>"Instructions from: &lt;path&gt;"</em> header before joining.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/instruction.ts">packages/opencode/src/session/instruction.ts</a><span class="lines"> : 178–220</span></span>
+        <p><span class="k">resolve()</span> attaches sibling <code>AGENTS.md</code> files on a per-file-read basis — when an Edit/Read targets a deep path, the nearest AGENTS.md is surfaced once per assistant message.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/util/filesystem.ts">packages/opencode/src/util/filesystem.ts</a><span class="lines"> : 175–250</span></span>
+        <p><span class="k">findUp()</span> and <span class="k">globUp()</span> — the directory-walk primitives used to locate AGENTS.md.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/config/config.ts">packages/opencode/src/config/config.ts</a><span class="lines"> : 241</span></span>
+        <p>Config field <code>instructions</code> — accepts additional glob patterns or remote HTTP(S) URLs of instruction files to merge.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/AGENTS.md">AGENTS.md</a></span>
+        <p>The repo's own root-level instructions — primary memory file actually loaded on every session in this workspace.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/AGENTS.md">packages/opencode/AGENTS.md</a></span>
+        <p>Package-scoped instructions — picked up automatically when the cwd is inside <code>packages/opencode</code>.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 8. SUBAGENTS -->
+<section class="primitive" id="subagents">
+  <div class="head">
+    <div class="num">PRIMITIVE 08</div>
+    <h2>Subagents</h2>
+    <p class="summary">
+      The <code>task</code> tool spawns a fresh <code>Session</code> with a
+      <code>parentID</code> pointer and a derived permission set. Three native roles
+      ship in-tree — <code>general</code>, <code>explore</code>, <code>scout</code> — each
+      with its own system prompt file. Foreground subagents return the final assistant
+      text; an experimental background mode returns immediately and notifies on
+      completion.
+    </p>
+    <div class="tags">
+      <span class="tag">fresh session</span>
+      <span class="tag">parentID</span>
+      <span class="tag">explore / scout / general</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/agent/agent.ts">packages/opencode/src/agent/agent.ts</a><span class="lines"> : 29–49</span></span>
+        <p><span class="k">Agent.Info</span> schema — <code>mode: "subagent" | "primary" | "all"</code> marks which agents are dispatchable as subtasks.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/agent/agent.ts">packages/opencode/src/agent/agent.ts</a><span class="lines"> : 168–204</span></span>
+        <p>Three native subagent roles — <span class="k">general</span> (multistep work), <span class="k">explore</span> (codebase search specialist), <span class="k">scout</span> (read-only docs/dep research).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/task.ts">packages/opencode/src/tool/task.ts</a><span class="lines"> : 96–301</span></span>
+        <p>The <span class="k">task</span> tool — resolves the requested agent, derives permissions, creates a new <code>Session</code> with <code>parentID</code>, runs the prompt in that session.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/task.ts">packages/opencode/src/tool/task.ts</a><span class="lines"> : 143–159</span></span>
+        <p>Subagent session creation — establishes the <code>parentID</code> link and applies <span class="k">deriveSubagentSessionPermission()</span> for isolation.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/agent/subagent-permissions.ts">packages/opencode/src/agent/subagent-permissions.ts</a><span class="lines"> : 17–34</span></span>
+        <p>Permission derivation — combines parent's edit-denies (Plan Mode), parent session deny rules, and subagent defaults (no <code>task</code> / <code>todowrite</code> unless agent grants).</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/session.ts">packages/opencode/src/session/session.ts</a><span class="lines"> : 657–676</span></span>
+        <p>Sessions persist a <code>parentID</code> field — directory/path context is inherited, the permission ruleset is fresh.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/llm/request.ts">packages/opencode/src/session/llm/request.ts</a><span class="lines"> : 54–64</span></span>
+        <p>System prompt selection — uses <code>input.agent.prompt</code> when defined (subagent role prompt), otherwise the provider default.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/agent/agent.ts">packages/opencode/src/agent/agent.ts</a><span class="lines"> : 200, 228, 240, 264, 279</span></span>
+        <p>Subagent <code>prompt</code> fields point at on-disk text files — <code>explore.txt</code>, <code>scout.txt</code>, <code>compaction.txt</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/prompt.ts">packages/opencode/src/session/prompt.ts</a><span class="lines"> : 1586–1598</span></span>
+        <p>If the requested agent mode is <code>subagent</code>, a <code>subtask</code> part is emitted that drives the <span class="k">task</span> tool; otherwise execution runs inline.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/task.ts">packages/opencode/src/tool/task.ts</a><span class="lines"> : 233–258</span></span>
+        <p>Background mode (experimental) — flag spawns the subagent async, returns immediately, notifies parent on completion.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/task.ts">packages/opencode/src/tool/task.ts</a><span class="lines"> : 273–278</span></span>
+        <p>Foreground return contract — final assistant text wrapped in <code>&lt;task&gt;</code> XML with <code>sessionID</code> for resumption via <code>task_id</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/tool/task.txt">packages/opencode/src/tool/task.txt</a></span>
+        <p>Public tool description shown to the LLM — when to dispatch a subagent, how the contract works, and the foreground/background semantics.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ADDITIONAL -->
+<section class="primitive" id="additional">
+  <div class="head">
+    <div class="num">+ ADDITIONAL</div>
+    <h2>Distinctive primitives</h2>
+    <p class="summary">
+      Beyond the named eight, opencode treats several pieces as first-class
+      runtime concerns. These didn't fit cleanly into the canonical taxonomy but matter
+      a lot in practice for understanding how the runtime behaves.
+    </p>
+    <div class="tags">
+      <span class="tag">bus</span>
+      <span class="tag">processor</span>
+      <span class="tag">snapshot</span>
+      <span class="tag">worktree</span>
+      <span class="tag">lsp</span>
+      <span class="tag">acp</span>
+    </div>
+  </div>
+  <div class="body">
+    <ul class="cites">
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/processor.ts">packages/opencode/src/session/processor.ts</a><span class="lines"> : 30–100</span></span>
+        <p><strong>Session processor — the agent loop.</strong> Drives the main turn execution, consumes streamed LLM responses, and provides handles to update tool calls mid-stream. Tracks toolcalls, snapshot, compaction state, and reasoning map per turn.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/bus/index.ts">packages/opencode/src/bus/index.ts</a><span class="lines"> : 1–100</span></span>
+        <p><strong>Typed event bus.</strong> Central pub/sub with Schema-validated event definitions; supports both eager subscriptions (acquired at <code>yield*</code> time to avoid race windows) and callback listeners.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/snapshot/index.ts">packages/opencode/src/snapshot/index.ts</a><span class="lines"> : 1–100</span></span>
+        <p><strong>Auto-snapshot per session.</strong> Each session has an isolated git repo (hash-keyed) capturing filesystem state at each turn; <code>session/revert.ts:1–80</code> exposes revert-to-point with selective patch application.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/worktree/index.ts">packages/opencode/src/worktree/index.ts</a><span class="lines"> : 1–80</span></span>
+        <p><strong>Per-session git worktrees.</strong> Creates isolated worktrees with optional startup commands, emits <code>worktree.ready</code>/<code>worktree.failed</code>, and supports reset/removal — the primitive enabling parallel session isolation.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/question/index.ts">packages/opencode/src/question/index.ts</a><span class="lines"> : 1–100</span></span>
+        <p><strong>Interactive question service.</strong> Agents can ask multi-choice or free-form questions mid-turn; publishes <code>Asked</code>/<code>Replied</code>/<code>Rejected</code> bus events. Rejection blocks execution with <code>QuestionRejectedError</code>.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/run-state.ts">packages/opencode/src/session/run-state.ts</a><span class="lines"> : 1–80</span></span>
+        <p><strong>Run-state &amp; doom-loop guard.</strong> Enforces a single concurrent execution per session via a <code>Runner</code> abstraction with cancellation, interrupt handlers, and a three-attempt threshold to break runaway loops.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/lsp/lsp.ts">packages/opencode/src/lsp/lsp.ts</a></span>
+        <p><strong>LSP integration.</strong> Manages language servers per project and exposes a tool for the LLM to query symbols, diagnostics, and references in real time — direct compiler-grade signal instead of pure text scraping.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/acp-next/service.ts">packages/opencode/src/acp-next/service.ts</a></span>
+        <p><strong>ACP (Agent Coding Protocol).</strong> Agent-side protocol for session negotiation, model switching, and config options — what external IDE/host integrations talk to.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/reminders.ts">packages/opencode/src/session/reminders.ts</a></span>
+        <p><strong>Plan mode + reminders.</strong> Bridges plan-mode → build-mode transitions and emits synthetic reminders into the conversation when the agent or mode changes mid-session.</p>
+      </li>
+      <li>
+        <span class="path"><a href="file:///workspaces/workshop-thin-repo/workshop/opencode/packages/opencode/src/session/todo.ts">packages/opencode/src/session/todo.ts</a></span>
+        <p><strong>Session-scoped TODO state.</strong> First-class task tracking surfaced through the <code>todowrite</code> tool; persisted with the session so progress survives compaction.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
 </main>
 
-<script>
-  const REPO = "/home/mihai/workshop/opencode";
-
-  const MODULES = [
-    {
-      id: "agent", cat: "loop", tag: "agent",
-      title: "Agent definitions",
-      summary: "Defines primary/sub-agents, their prompts, model, allowed tools, and permission ruleset.",
-      note: { text: "An Agent.Info is the unit the loop is parameterized by — when a user (or a subagent task) starts a turn, an agent is resolved here and its prompt + ruleset are pinned for the run." },
-      files: [
-        { p: "packages/opencode/src/agent/agent.ts", n: "Agent service, Info schema, list/get/generate" },
-        { p: "packages/opencode/src/agent/subagent-permissions.ts", n: "Permission policy for subagents" },
-        { p: "packages/opencode/src/agent/generate.txt", n: "Prompt template: generate new agent" },
-        { p: "packages/opencode/src/agent/prompt", n: "Built-in agent prompts (explore, scout, …)" },
-      ],
-    },
-    {
-      id: "session", cat: "loop", tag: "session",
-      title: "Session core",
-      summary: "Owns the conversation: rows in SQLite, message tree, share/revert, slug, summary stats.",
-      note: { text: "Pure data + Effect services. The processor calls back into Session to append parts and update message rows as the LLM streams." },
-      files: [
-        { p: "packages/opencode/src/session/session.ts", n: "Session.Service: create, append, list, revert" },
-        { p: "packages/opencode/src/session/message-v2.ts", n: "Message + parts schema (current)" },
-        { p: "packages/opencode/src/session/schema.ts", n: "SessionID / MessageID / PartID brands" },
-        { p: "packages/opencode/src/session/session.sql.ts", n: "Drizzle tables for sessions/parts" },
-        { p: "packages/opencode/src/session/revert.ts", n: "Snapshot-backed undo" },
-      ],
-    },
-    {
-      id: "processor", cat: "loop", tag: "loop",
-      title: "Loop / Processor",
-      summary: "The agent loop. Pulls user input, drives LLM.stream, handles tool calls, appends parts.",
-      note: { text: "This is the heartbeat. It coordinates LLM streaming, tool execution, permission asks, and compaction — yielding events onto the Bus as it goes." },
-      files: [
-        { p: "packages/opencode/src/session/processor.ts", n: "Main loop driver (~880 LOC)" },
-        { p: "packages/opencode/src/session/run-state.ts", n: "Per-run mutable state (abort, counters)" },
-        { p: "packages/opencode/src/session/status.ts", n: "Status transitions (idle/running/error)" },
-        { p: "packages/opencode/src/session/retry.ts", n: "LLM retry policy" },
-        { p: "packages/opencode/src/session/compaction.ts", n: "Context-window compaction" },
-        { p: "packages/opencode/src/session/overflow.ts", n: "Overflow guard before send" },
-      ],
-    },
-    {
-      id: "llm", cat: "loop", tag: "llm",
-      title: "LLM stream",
-      summary: "Wraps the AI SDK and the opencode-native runtime. Returns an Effect Stream of LLMEvents.",
-      note: { text: "Two backends live side by side: the AI-SDK path (most providers) and a native streaming runtime used for opencode-hosted models." },
-      files: [
-        { p: "packages/opencode/src/session/llm.ts", n: "LLM.Service entry, stream()" },
-        { p: "packages/opencode/src/session/llm/ai-sdk.ts", n: "AI-SDK integration" },
-        { p: "packages/opencode/src/session/llm/native-runtime.ts", n: "Native streaming runtime" },
-        { p: "packages/opencode/src/session/llm/native-request.ts", n: "Native request shape" },
-        { p: "packages/opencode/src/session/llm/request.ts", n: "Common request prep" },
-        { p: "packages/opencode/src/session/system.ts", n: "Builds the system prompt" },
-      ],
-    },
-    {
-      id: "provider", cat: "loop", tag: "provider",
-      title: "Providers / models",
-      summary: "Resolves model IDs, auth, and per-provider transforms (e.g. token caps, message shape).",
-      files: [
-        { p: "packages/opencode/src/provider/provider.ts", n: "Provider.Service: default + resolution" },
-        { p: "packages/opencode/src/provider/transform.ts", n: "Provider-specific message rewrites" },
-        { p: "packages/opencode/src/provider/auth.ts", n: "Per-provider auth lookup" },
-        { p: "packages/opencode/src/provider/model-status.ts", n: "Per-model status checks" },
-        { p: "packages/opencode/src/provider/schema.ts", n: "ProviderID / ModelID brands" },
-      ],
-    },
-
-    {
-      id: "tool-core", cat: "tool", tag: "tool",
-      title: "Tool framework",
-      summary: "Defines what a tool is, wraps execute() with arg validation, output truncation, tracing.",
-      note: { text: "Tool.define returns an Effect that builds an Info. The wrapper handles InvalidArgumentsError, span attrs, and post-execute truncation." },
-      files: [
-        { p: "packages/opencode/src/tool/tool.ts", n: "Tool.define, Context, ExecuteResult" },
-        { p: "packages/opencode/src/tool/truncate.ts", n: "Output truncation service" },
-        { p: "packages/opencode/src/tool/truncation-dir.ts", n: "Overflow file scratch dir" },
-        { p: "packages/opencode/src/tool/schema.ts", n: "Common JSON Schema helpers" },
-        { p: "packages/opencode/src/tool/invalid.ts", n: "Fallback tool for unknown calls" },
-      ],
-    },
-    {
-      id: "tool-registry", cat: "tool", tag: "registry",
-      title: "Tool registry",
-      summary: "Assembles builtin + plugin + MCP tools for a given (provider, model, agent) tuple.",
-      note: { text: "Filters by agent capabilities and provider quirks, exposes named tools (e.g. task, read) the loop calls directly." },
-      files: [
-        { p: "packages/opencode/src/tool/registry.ts", n: "Registry.Service: all(), tools(), named()" },
-      ],
-    },
-    {
-      id: "tool-fs", cat: "tool", tag: "filesystem",
-      title: "Filesystem tools",
-      summary: "read / write / edit / apply_patch / glob / grep — the bread and butter.",
-      files: [
-        { p: "packages/opencode/src/tool/read.ts", n: "Read with offset/limit/pages" },
-        { p: "packages/opencode/src/tool/write.ts", n: "Whole-file write" },
-        { p: "packages/opencode/src/tool/edit.ts", n: "String-replace edit" },
-        { p: "packages/opencode/src/tool/apply_patch.ts", n: "Multi-hunk patch" },
-        { p: "packages/opencode/src/tool/glob.ts", n: "Glob search" },
-        { p: "packages/opencode/src/tool/grep.ts", n: "Ripgrep-backed search" },
-        { p: "packages/opencode/src/tool/external-directory.ts", n: "Read outside-repo guard" },
-      ],
-    },
-    {
-      id: "tool-exec", cat: "tool", tag: "execution",
-      title: "Shell & web tools",
-      summary: "shell, webfetch, websearch — the side-effect heavy ones, all behind permission gates.",
-      files: [
-        { p: "packages/opencode/src/tool/shell.ts", n: "Bash/PowerShell tool" },
-        { p: "packages/opencode/src/tool/shell/prompt.ts", n: "Shell tool params + prompt" },
-        { p: "packages/opencode/src/tool/shell/id.ts", n: "Background shell IDs" },
-        { p: "packages/opencode/src/tool/webfetch.ts", n: "WebFetch tool" },
-        { p: "packages/opencode/src/tool/websearch.ts", n: "WebSearch tool" },
-        { p: "packages/opencode/src/tool/mcp-websearch.ts", n: "MCP-backed web search variant" },
-      ],
-    },
-    {
-      id: "tool-meta", cat: "tool", tag: "meta",
-      title: "Meta tools",
-      summary: "Tools the loop uses to manage itself: subagent task spawn, todo, plan-mode, skills, repo intro.",
-      files: [
-        { p: "packages/opencode/src/tool/task.ts", n: "Spawn subagent task" },
-        { p: "packages/opencode/src/tool/todo.ts", n: "TodoWrite tool" },
-        { p: "packages/opencode/src/tool/plan.ts", n: "Plan mode enter/exit" },
-        { p: "packages/opencode/src/tool/skill.ts", n: "Skill invocation tool" },
-        { p: "packages/opencode/src/tool/question.ts", n: "AskUserQuestion tool" },
-        { p: "packages/opencode/src/tool/repo_overview.ts", n: "Repo overview tool" },
-        { p: "packages/opencode/src/tool/repo_clone.ts", n: "Repo clone tool" },
-        { p: "packages/opencode/src/tool/lsp.ts", n: "LSP tool bridge" },
-      ],
-    },
-
-    {
-      id: "permission", cat: "perm", tag: "permission",
-      title: "Permission engine",
-      summary: "The yes/no gate: rulesets, ask events, replies, persisted approvals.",
-      note: { text: "Each tool call surfaces a Permission.Request on the Bus. The CLI / UI replies once / always / reject. 'always' rules are stored against the project." },
-      files: [
-        { p: "packages/opencode/src/permission/index.ts", n: "ask(), Ruleset/Request/Reply, errors" },
-        { p: "packages/opencode/src/permission/evaluate.ts", n: "Apply ruleset to a request" },
-        { p: "packages/opencode/src/permission/arity.ts", n: "Bash argument arity matching" },
-        { p: "packages/opencode/src/permission/schema.ts", n: "PermissionID brand" },
-        { p: "packages/opencode/src/config/permission.ts", n: "ConfigPermission types" },
-      ],
-    },
-
-    {
-      id: "shell-sandbox", cat: "sandbox", tag: "sandbox",
-      title: "Shell sandbox",
-      summary: "How shells are actually spawned: discovery, kill-tree, signal handling, OS quirks.",
-      note: { text: "The shell tool calls into this module. POSIX vs PowerShell, login vs non-login, deny-list of incompatible shells (fish, nu) are decided here." },
-      files: [
-        { p: "packages/opencode/src/shell/shell.ts", n: "Discovery, killTree, META table" },
-        { p: "packages/opencode/src/pty", n: "PTY wrappers used by some tools" },
-      ],
-    },
-    {
-      id: "background", cat: "sandbox", tag: "background",
-      title: "Background jobs",
-      summary: "Long-lived processes (dev servers, watchers) the loop launches without blocking.",
-      files: [
-        { p: "packages/opencode/src/background", n: "Background.Job service folder" },
-      ],
-    },
-    {
-      id: "fs", cat: "sandbox", tag: "filesystem",
-      title: "Filesystem services",
-      summary: "Repo + path utilities, ignore handling, ripgrep wrapper, project boundary checks.",
-      files: [
-        { p: "packages/opencode/src/file", n: "ripgrep wrapper, file services" },
-        { p: "packages/opencode/src/git", n: "Git service" },
-        { p: "packages/opencode/src/snapshot/index.ts", n: "Repo snapshots (for revert)" },
-        { p: "packages/opencode/src/worktree", n: "Worktree management" },
-      ],
-    },
-
-    {
-      id: "plugin", cat: "plugin", tag: "plugin",
-      title: "Plugin host",
-      summary: "Loads npm or local plugins, exposes hooks (auth, tools, lifecycle) into the runtime.",
-      files: [
-        { p: "packages/opencode/src/plugin/index.ts", n: "Plugin.Service entry" },
-        { p: "packages/opencode/src/plugin/loader.ts", n: "Resolve / install / import plan" },
-        { p: "packages/opencode/src/plugin/shared.ts", n: "PluginKind / source helpers" },
-        { p: "packages/opencode/src/plugin/install.ts", n: "npm install for plugins" },
-        { p: "packages/opencode/src/plugin/meta.ts", n: "Package metadata" },
-        { p: "packages/opencode/src/plugin/github-copilot", n: "Bundled auth plugins" },
-      ],
-    },
-    {
-      id: "mcp", cat: "plugin", tag: "mcp",
-      title: "MCP integration",
-      summary: "Connects to Model Context Protocol servers (stdio/HTTP) and exposes their tools.",
-      files: [
-        { p: "packages/opencode/src/mcp/index.ts", n: "MCP service (~970 LOC)" },
-        { p: "packages/opencode/src/mcp/auth.ts", n: "MCP server auth flow" },
-        { p: "packages/opencode/src/mcp/oauth-provider.ts", n: "OAuth provider for MCP" },
-        { p: "packages/opencode/src/mcp/oauth-callback.ts", n: "Callback server" },
-        { p: "packages/opencode/src/config/mcp.ts", n: "MCP config schema" },
-      ],
-    },
-    {
-      id: "skill", cat: "plugin", tag: "skill",
-      title: "Skills",
-      summary: "User-authored skill packs (system prompts + assets) discoverable by the model.",
-      files: [
-        { p: "packages/opencode/src/skill", n: "Skill service" },
-        { p: "packages/opencode/src/config/skills.ts", n: "Skill config" },
-      ],
-    },
-
-    {
-      id: "bus", cat: "bus", tag: "bus",
-      title: "Event bus",
-      summary: "Effect PubSub. Eager subscriptions, typed events; every domain publishes through here.",
-      note: { text: "Subscriptions are acquired at yield*-time so callers don't miss publishes during stream start — see the inline comment in bus/index.ts." },
-      files: [
-        { p: "packages/opencode/src/bus/index.ts", n: "Bus.Service: publish, subscribe, callback" },
-        { p: "packages/opencode/src/bus/bus-event.ts", n: "BusEvent.define helper" },
-        { p: "packages/opencode/src/bus/global.ts", n: "GlobalBus (cross-instance)" },
-      ],
-    },
-    {
-      id: "sync", cat: "bus", tag: "sync",
-      title: "Sync",
-      summary: "Persists and replays bus events for share/replay and multi-client UIs.",
-      files: [
-        { p: "packages/opencode/src/sync/index.ts", n: "Sync service entry" },
-        { p: "packages/opencode/src/sync/event.sql.ts", n: "Event log table" },
-        { p: "packages/opencode/src/sync/schema.ts", n: "Sync schemas" },
-      ],
-    },
-
-    {
-      id: "cli", cat: "infra", tag: "cli",
-      title: "CLI",
-      summary: "Entry point binary. Boots Effect runtime, parses flags, dispatches to TUI or commands.",
-      files: [
-        { p: "packages/opencode/src/index.ts", n: "Process entry" },
-        { p: "packages/opencode/src/cli/bootstrap.ts", n: "Runtime bootstrap" },
-        { p: "packages/opencode/src/cli/cmd", n: "Subcommands" },
-        { p: "packages/opencode/src/cli/ui.ts", n: "Terminal UI helpers" },
-      ],
-    },
-    {
-      id: "server", cat: "infra", tag: "server",
-      title: "HTTP server",
-      summary: "Local HTTP/WebSocket server for desktop, web, and remote clients.",
-      files: [
-        { p: "packages/opencode/src/server/server.ts", n: "Server entry" },
-        { p: "packages/opencode/src/server/auth.ts", n: "Server auth" },
-        { p: "packages/opencode/src/server/event.ts", n: "Bus → SSE/WS bridge" },
-        { p: "packages/opencode/src/server/routes", n: "Route handlers" },
-        { p: "packages/opencode/src/server/projectors.ts", n: "Read-model projections" },
-      ],
-    },
-    {
-      id: "storage", cat: "infra", tag: "storage",
-      title: "Storage",
-      summary: "SQLite via Drizzle. Stores sessions, parts, permissions, sync events, projects.",
-      files: [
-        { p: "packages/opencode/src/storage/storage.ts", n: "Storage.Service" },
-        { p: "packages/opencode/src/storage/db.ts", n: "DB layer (platform-agnostic)" },
-        { p: "packages/opencode/src/storage/db.bun.ts", n: "Bun driver" },
-        { p: "packages/opencode/src/storage/db.node.ts", n: "Node driver" },
-        { p: "packages/opencode/src/storage/schema.sql.ts", n: "Drizzle schema" },
-        { p: "packages/opencode/src/storage/json-migration.ts", n: "Legacy JSON → SQL migration" },
-      ],
-    },
-    {
-      id: "lsp", cat: "infra", tag: "lsp",
-      title: "LSP integration",
-      summary: "Spawns language servers to power the lsp tool: diagnostics, definitions, hovers.",
-      files: [
-        { p: "packages/opencode/src/lsp/lsp.ts", n: "LSP.Service" },
-        { p: "packages/opencode/src/lsp/client.ts", n: "JSON-RPC client" },
-        { p: "packages/opencode/src/lsp/launch.ts", n: "Process launch" },
-        { p: "packages/opencode/src/lsp/diagnostic.ts", n: "Diagnostic mapping" },
-        { p: "packages/opencode/src/lsp/language.ts", n: "Language detection" },
-        { p: "packages/opencode/src/lsp/server.ts", n: "Server config" },
-      ],
-    },
-    {
-      id: "config", cat: "infra", tag: "config",
-      title: "Config",
-      summary: "Layered config: defaults, project file, env, CLI flags. Everything is parsed via Schema.",
-      files: [
-        { p: "packages/opencode/src/config/config.ts", n: "Config.Service" },
-        { p: "packages/opencode/src/config/agent.ts", n: "Agent config" },
-        { p: "packages/opencode/src/config/permission.ts", n: "Permission rules" },
-        { p: "packages/opencode/src/config/provider.ts", n: "Provider config" },
-        { p: "packages/opencode/src/config/plugin.ts", n: "Plugin spec" },
-        { p: "packages/opencode/src/config/parse.ts", n: "Parsing + merge" },
-      ],
-    },
-  ];
-
-  document.getElementById("repoRoot").textContent = REPO;
-
-  function fileUrl(rel) {
-    return "file://" + REPO + "/" + rel;
-  }
-
-  function el(tag, opts) {
-    const e = document.createElement(tag);
-    if (opts) {
-      if (opts.className) e.className = opts.className;
-      if (opts.text != null) e.textContent = opts.text;
-      if (opts.attrs) {
-        for (const k of Object.keys(opts.attrs)) {
-          e.setAttribute(k, opts.attrs[k]);
-        }
-      }
-      if (opts.children) {
-        for (const child of opts.children) {
-          if (child != null) e.appendChild(child);
-        }
-      }
-    }
-    return e;
-  }
-
-  const grid = document.getElementById("grid");
-
-  for (const m of MODULES) {
-    const tag = el("span", { className: "tag", text: m.tag });
-    const title = el("h3", { text: m.title });
-    const chev = el("span", { className: "chev", text: "▸" });
-    const head = el("div", { className: "head", children: [tag, title, chev] });
-
-    const summary = el("p", { className: "summary", text: m.summary });
-
-    const bodyKids = [];
-    if (m.note) {
-      bodyKids.push(el("p", { className: "note", text: m.note.text }));
-    }
-    const fileItems = m.files.map(function (f) {
-      const a = el("a", { text: f.p, attrs: { href: fileUrl(f.p) } });
-      const kids = [a];
-      if (f.n) {
-        kids.push(el("span", { className: "note", text: " — " + f.n }));
-      }
-      return el("li", { children: kids });
-    });
-    bodyKids.push(el("ul", { className: "files", children: fileItems }));
-    const body = el("div", { className: "body", children: bodyKids });
-
-    const card = el("div", {
-      className: "card",
-      attrs: { "data-cat": m.cat },
-      children: [head, summary, body],
-    });
-    head.addEventListener("click", function () { card.classList.toggle("expanded"); });
-    grid.appendChild(card);
-  }
-</script>
+<footer>
+  <div class="row">
+    <div>opencode runtime primitives · architecture reference</div>
+    <div>file paths are clickable in browsers honouring <code>file://</code></div>
+  </div>
+</footer>
 
 </body>
 </html>
